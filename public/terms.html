@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="شروط الاستخدام - دليل الهاتف الدولي">
+    <meta name="theme-color" content="#0f172a">
+    <title>شروط الاستخدام - دليل الهاتف الدولي</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>
+        (function(){
+            var s=localStorage.getItem('theme');
+            var p=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+            document.documentElement.setAttribute('data-theme',s||p);
+        })();
+    </script>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{--bg-primary:#fff;--bg-secondary:#f8fafc;--bg-card:#fff;--bg-glass:rgba(255,255,255,.72);--bg-glass-border:rgba(255,255,255,.3);--bg-glass-hover:rgba(255,255,255,.85);--text-primary:#0f172a;--text-secondary:#475569;--text-muted:#94a3b8;--border-color:#e2e8f0;--border-light:#f1f5f9;--accent:#10b981;--accent-hover:#059669;--accent-light:rgba(16,185,129,.1);--accent-glow:rgba(16,185,129,.25);--danger:#ef4444;--warning:#f59e0b;--info:#3b82f6;--success:#10b981;--shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -2px rgba(0,0,0,.05);--shadow-lg:0 10px 15px -3px rgba(0,0,0,.08),0 4px 6px -4px rgba(0,0,0,.05);--shadow-xl:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.05);--radius-sm:8px;--radius-md:12px;--radius-lg:16px;--transition:all .2s ease}
+        [data-theme="dark"]{--bg-primary:#0b1120;--bg-secondary:#111827;--bg-card:#1e293b;--bg-glass:rgba(15,23,42,.75);--bg-glass-border:rgba(51,65,85,.4);--bg-glass-hover:rgba(30,41,59,.85);--text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;--border-color:#1e293b;--border-light:#1e293b;--accent:#34d399;--accent-hover:#10b981;--accent-light:rgba(52,211,153,.1);--accent-glow:rgba(52,211,153,.2);--shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 6px -1px rgba(0,0,0,.3),0 2px 4px -2px rgba(0,0,0,.2);--shadow-lg:0 10px 15px -3px rgba(0,0,0,.3),0 4px 6px -4px rgba(0,0,0,.2);--shadow-xl:0 20px 25px -5px rgba(0,0,0,.4),0 8px 10px -6px rgba(0,0,0,.3)}
+        html{scroll-behavior:smooth}
+        body{font-family:'Cairo','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.7;min-height:100vh;display:flex;flex-direction:column;transition:background-color .3s,color .3s;-webkit-font-smoothing:antialiased}
+        .nav-glass{position:fixed;top:0;right:0;left:0;z-index:1000;background:var(--bg-glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--bg-glass-border);transition:var(--transition)}
+        .nav-container{max-width:1280px;margin:0 auto;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:72px}
+        .nav-logo{display:flex;align-items:center;gap:.75rem;text-decoration:none;color:var(--text-primary);font-weight:700;font-size:1.25rem;flex-shrink:0}
+        .nav-logo-icon{display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:linear-gradient(135deg,var(--accent),#06b6d4);border-radius:var(--radius-sm);color:#fff;box-shadow:0 2px 8px var(--accent-glow)}
+        .nav-logo-text{background:linear-gradient(135deg,var(--accent),#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;align-items:center;gap:.25rem;list-style:none}
+        .nav-link{display:flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:var(--radius-sm);color:var(--text-secondary);text-decoration:none;font-size:.925rem;font-weight:500;transition:var(--transition);white-space:nowrap}
+        .nav-link:hover,.nav-link.active{color:var(--accent);background:var(--accent-light)}
+        .nav-actions{display:flex;align-items:center;gap:.5rem}
+        .nav-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.5rem 1.25rem;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;font-family:inherit;cursor:pointer;transition:var(--transition);border:none;text-decoration:none;white-space:nowrap}
+        .nav-btn-ghost{background:transparent;color:var(--text-secondary)}
+        .nav-btn-ghost:hover{color:var(--text-primary);background:var(--bg-glass-hover)}
+        .nav-btn-primary{background:linear-gradient(135deg,var(--accent),#06b6d4);color:#fff;box-shadow:0 2px 8px var(--accent-glow)}
+        .theme-toggle{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border-color);color:var(--text-secondary);cursor:pointer;transition:var(--transition)}
+        .theme-toggle:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-light)}
+        .hamburger{display:none;flex-direction:column;align-items:center;justify-content:center;width:40px;height:40px;border-radius:var(--radius-sm);background:transparent;border:none;cursor:pointer;gap:5px;padding:8px}
+        .hamburger span{display:block;width:22px;height:2px;background:var(--text-primary);border-radius:2px;transition:all .3s ease}
+        .hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+        .hamburger.active span:nth-child(2){opacity:0}
+        .hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+        .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:998;opacity:0;transition:opacity .3s}
+        .mobile-overlay.show{opacity:1}
+        .mobile-nav{display:none;position:fixed;top:72px;right:0;bottom:0;width:280px;max-width:85vw;background:var(--bg-card);border-left:1px solid var(--border-color);box-shadow:var(--shadow-xl);z-index:999;overflow-y:auto;padding:1.5rem;transform:translateX(100%);transition:transform .3s}
+        .mobile-nav.show{transform:translateX(0)}
+        .mobile-nav-link{display:flex;align-items:center;gap:.75rem;padding:.875rem 1rem;border-radius:var(--radius-sm);color:var(--text-secondary);text-decoration:none;font-size:1rem;font-weight:500;transition:var(--transition);margin-bottom:.25rem}
+        .mobile-nav-link:hover{background:var(--accent-light);color:var(--accent)}
+        .main-content{flex:1;margin-top:72px}
+        .container{max-width:1280px;margin:0 auto;padding:0 1.5rem}
+
+        /* Page Header */
+        .page-header{padding:3rem 0 2rem;background:linear-gradient(135deg,var(--bg-primary) 0%,var(--bg-secondary) 100%);text-align:center;border-bottom:1px solid var(--border-color)}
+        .page-header h1{font-size:2.25rem;font-weight:800;margin-bottom:.75rem;background:linear-gradient(135deg,#1E40AF 0%,#3B82F6 50%,#06b6d4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .page-header p{color:var(--text-secondary);font-size:1.05rem;max-width:600px;margin:0 auto}
+        .page-header .last-update{margin-top:1rem;font-size:.85rem;color:var(--text-muted);display:inline-flex;align-items:center;gap:.5rem;background:var(--accent-light);padding:.4rem 1rem;border-radius:9999px}
+
+        /* Content */
+        .legal-content{padding:3rem 0 4rem;max-width:860px;margin:0 auto}
+        .legal-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:2.5rem;margin-bottom:1.5rem;box-shadow:var(--shadow-sm)}
+        .legal-card h2{font-size:1.35rem;font-weight:700;color:var(--text-primary);margin-bottom:1rem;padding-bottom:.75rem;border-bottom:2px solid var(--border-color);display:flex;align-items:center;gap:.75rem}
+        .legal-card h2 .section-num{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,var(--accent),#06b6d4);color:#fff;border-radius:50%;font-size:.85rem;font-weight:700;flex-shrink:0}
+        .legal-card p{color:var(--text-secondary);font-size:.95rem;line-height:1.9;margin-bottom:1rem}
+        .legal-card ul,.legal-card ol{color:var(--text-secondary);font-size:.95rem;line-height:2;padding-right:1.5rem;margin-bottom:1rem}
+        .legal-card li{margin-bottom:.5rem}
+        .legal-card strong{color:var(--text-primary);font-weight:600}
+        .legal-card a{color:var(--accent);text-decoration:none;font-weight:500}
+        .legal-card a:hover{text-decoration:underline}
+        .legal-highlight{background:var(--accent-light);border-right:4px solid var(--accent);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:1rem 1.25rem;margin:1rem 0;font-size:.9rem;color:var(--text-secondary)}
+
+        /* Footer */
+        .site-footer{margin-top:auto}
+        .footer-glass{background:var(--bg-glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-top:1px solid var(--bg-glass-border)}
+        .footer-container{max-width:1280px;margin:0 auto;padding:3rem 1.5rem 1.5rem}
+        .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:3rem;margin-bottom:2.5rem}
+        .footer-logo{display:inline-flex;align-items:center;gap:.625rem;text-decoration:none;margin-bottom:1rem}
+        .footer-logo-icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#06b6d4);border-radius:8px;color:#fff}
+        .footer-logo-text{font-size:1.15rem;font-weight:700;background:linear-gradient(135deg,var(--accent),#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-description{color:var(--text-secondary);font-size:.925rem;line-height:1.8;max-width:360px}
+        .footer-heading{font-size:.95rem;font-weight:700;color:var(--text-primary);margin-bottom:1rem;position:relative;padding-bottom:.5rem}
+        .footer-heading::after{content:'';position:absolute;bottom:0;right:0;width:30px;height:3px;background:linear-gradient(135deg,var(--accent),#06b6d4);border-radius:2px}
+        .footer-links{list-style:none;padding:0}
+        .footer-links li{margin-bottom:.5rem}
+        .footer-links a{display:inline-flex;align-items:center;gap:.375rem;color:var(--text-secondary);text-decoration:none;font-size:.9rem;font-weight:500;transition:var(--transition)}
+        .footer-links a:hover{color:var(--accent)}
+        .footer-bottom{border-top:1px solid var(--border-color);padding-top:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+        .footer-copyright{color:var(--text-muted);font-size:.85rem}
+        .back-to-top{position:fixed;bottom:2rem;left:2rem;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#06b6d4);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 12px var(--accent-glow);opacity:0;visibility:hidden;transform:translateY(20px);transition:all .3s ease;z-index:100;display:flex;align-items:center;justify-content:center}
+        .back-to-top.show{opacity:1;visibility:visible;transform:translateY(0)}
+        @media(max-width:768px){
+            .nav-links{display:none}
+            .hamburger{display:flex}
+            .mobile-nav,.mobile-overlay{display:block}
+            .nav-container{height:64px}
+            .main-content{margin-top:64px}
+            .page-header h1{font-size:1.75rem}
+            .legal-card{padding:1.5rem}
+            .footer-grid{grid-template-columns:1fr;gap:2rem}
+            .footer-bottom{flex-direction:column;text-align:center}
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <header class="nav-glass">
+        <nav class="nav-container">
+            <a href="index.html" class="nav-logo">
+                <span class="nav-logo-icon"><i data-lucide="phone" style="width:20px;height:20px"></i></span>
+                <span class="nav-logo-text">دليل الهاتف الدولي</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html" class="nav-link"><i data-lucide="home" style="width:16px;height:16px"></i> الرئيسية</a></li>
+                <li><a href="search.html" class="nav-link"><i data-lucide="search" style="width:16px;height:16px"></i> البحث</a></li>
+                <li><a href="plans.html" class="nav-link"><i data-lucide="crown" style="width:16px;height:16px"></i> الباقات</a></li>
+            </ul>
+            <div class="nav-actions">
+                <button class="theme-toggle" id="themeToggle" aria-label="تبديل الوضع"><i data-lucide="moon" class="icon-moon" style="width:18px;height:18px"></i><i data-lucide="sun" class="icon-sun" style="width:18px;height:18px;display:none"></i></button>
+                <a href="login.html" class="nav-btn nav-btn-ghost"><i data-lucide="log-in" style="width:16px;height:16px"></i> تسجيل الدخول</a>
+                <a href="register.html" class="nav-btn nav-btn-primary"><i data-lucide="user-plus" style="width:16px;height:16px"></i> إنشاء حساب</a>
+                <button class="hamburger" id="hamburgerBtn"><span></span><span></span><span></span></button>
+            </div>
+        </nav>
+    </header>
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+    <nav class="mobile-nav" id="mobileNav">
+        <a href="index.html" class="mobile-nav-link"><i data-lucide="home" style="width:18px;height:18px"></i> الرئيسية</a>
+        <a href="search.html" class="mobile-nav-link"><i data-lucide="search" style="width:18px;height:18px"></i> البحث</a>
+        <a href="plans.html" class="mobile-nav-link"><i data-lucide="crown" style="width:18px;height:18px"></i> الباقات</a>
+        <a href="terms.html" class="mobile-nav-link"><i data-lucide="file-text" style="width:18px;height:18px"></i> شروط الاستخدام</a>
+        <a href="privacy.html" class="mobile-nav-link"><i data-lucide="shield" style="width:18px;height:18px"></i> سياسة الخصوصية</a>
+    </nav>
+
+    <main class="main-content">
+        <!-- Page Header -->
+        <section class="page-header">
+            <div class="container">
+                <h1>شروط الاستخدام</h1>
+                <p>يرجى قراءة هذه الشروط بعناية قبل استخدام خدمة دليل الهاتف الدولي</p>
+                <div class="last-update">
+                    <i data-lucide="calendar" style="width:14px;height:14px"></i>
+                    آخر تحديث: 13 مايو 2026
+                </div>
+            </div>
+        </section>
+
+        <!-- Legal Content -->
+        <div class="legal-content container">
+            <!-- Section 1 -->
+            <div class="legal-card">
+                <h2><span class="section-num">1</span> المقدمة والقبول</h2>
+                <p>مرحباً بك في دليل الهاتف الدولي (المُشار إليه بـ "الخدمة" أو "الموقع"). باستخدامك لهذه الخدمة، فإنك توافق على الالتزام بشروط الاستخدام هذه ("الشروط"). إذا كنت لا توافق على أي من هذه الشروط، يُرجى عدم استخدام الخدمة فوراً. تسري هذه الشروط على جميع زياراتك واستخداماتك للموقع وتطبيقاته المرتبطة به.</p>
+                <p>يُعدّ استخدامك المستمر للخدمة بعد نشر أي تعديلات على هذه الشروط بمثابة قبول صريح منك لتلك التعديلات. لذلك ننصحك بمراجعة هذه الصفحة بشكل دوري للاطلاع على أحدث التحديثات والتغييرات التي قد تطرأ.</p>
+                <div class="legal-highlight">
+                    <strong>ملاحظة مهمة:</strong> تخضع هذه الشروط وتُفسَّر وفقاً للقوانين المعمول بها في الجمهورية اليمنية. وأي نزاع ينشأ بخصوصها يُحال إلى المحاكم المختصة في اليمن.
+                </div>
+            </div>
+
+            <!-- Section 2 -->
+            <div class="legal-card">
+                <h2><span class="section-num">2</span> وصف الخدمة</h2>
+                <p>دليل الهاتف الدولي هو خدمة إلكترونية تتيح للمستخدمين البحث عن الأرقام الهاتفية والتعرف على هوية أصحابها من مختلف دول العالم. تشمل الخدمة البحث بالاسم أو الرقم الهاتفي، وتقديم معلومات متعلقة بالمشغل واسم المشترك والدولة. تعتمد الخدمة على قواعد بيانات متعددة المصادر يتم تحديثها بشكل دوري لضمان دقة المعلومات.</p>
+                <p>نحرص على تطوير الخدمة وتحسينها باستمرار، ولذلك نحتفظ بالحق في تعديل أو إيقاف أي ميزة من ميزات الخدمة في أي وقت دون إشعار مسبق. كما قد نقدم ميزات إضافية جديدة تتطلب موافقتك على شروط إضافية محددة بتلك الميزات.</p>
+            </div>
+
+            <!-- Section 3 -->
+            <div class="legal-card">
+                <h2><span class="section-num">3</span> التسجيل وحسابات المستخدمين</h2>
+                <p>للاستفادة من بعض ميزات الخدمة المتقدمة، قد يُطلب منك إنشاء حساب شخصي. عند التسجيل، يجب عليك تقديم معلومات صحيحة ودقيقة وكاملة، والتحديث المستمر لها في حال حدوث أي تغيير. أنت مسؤول عن الحفاظ على سريهية بيانات حسابك وكلمة المرور الخاصة بك.</p>
+                <ul>
+                    <li>يجب أن يكون عمرك 16 عاماً على الأقل لإنشاء حساب واستخدام الخدمة</li>
+                    <li>لا يجوز لك إنشاء أكثر من حساب واحد لنفس الشخص</li>
+                    <li>لا يجوز استخدام حساب شخص آخر أو محاولة الوصول إليه دون إذن صريح</li>
+                    <li>يجب إبلاغنا فوراً في حال اكتشاف أي استخدام غير مصرح به لحسابك</li>
+                    <li>أنت المسؤول عن جميع الأنشطة التي تتم تحت حسابك</li>
+                </ul>
+                <p>نحتفظ بالحق في تعليق أو إغلاق أي حساب يُخالف هذه الشروط أو يُستخدم بشكل يضر بالخدمة أو بمستخدميها الآخرين، وذلك دون إنذار مسبق في حالات المخالفة الجسيمة.</p>
+            </div>
+
+            <!-- Section 4 -->
+            <div class="legal-card">
+                <h2><span class="section-num">4</span> الباقات والاشتراكات</h2>
+                <p>نوفر ثلاث خطط اشتراك رئيسية: الخطة المجانية، والخطة الاحترافية، والخطة المميزة. يحدد نوع الاشتراك حدود استخدامك للخدمة وعدد عمليات البحث المسموح بها يومياً. يمكنك في أي وقت الترقية إلى خطة أعلى من خلال صفحة الاشتراك في حسابك.</li>
+                <ul>
+                    <li><strong>الخطة المجانية:</strong> تتيح لك 10 عمليات بحث يومياً مع نتائج أساسية ولا تنتهي صلاحيتها</li>
+                    <li><strong>الخطة الاحترافية:</strong> تتيح لك 100 عملية بحث يومياً مع نتائج تفصيلية لمدة 30 يوماً</li>
+                    <li><strong>الخطة المميزة:</strong> تتيح لك بحثاً غير محدود مع جميع المميزات المتقدمة لمدة 30 يوماً</li>
+                </ul>
+                <p>يتم تجديد الاشتراك المدفوع تلقائياً في نهاية كل فترة ما لم تقم بإلغائه قبل موعد التجديد. ويُحسب السعر المذكور بالعملة المحلية (ريال يمني) وقد يتغير وفقاً لسياسات التسعير المعلنة.</p>
+            </div>
+
+            <!-- Section 5 -->
+            <div class="legal-card">
+                <h2><span class="section-num">5</span> قواعد السلوك المقبول</h2>
+                <p>يُحظر عليك تماماً القيام بأي من الأنشطة التالية أثناء استخدام الخدمة:</p>
+                <ul>
+                    <li>استخدام الخدمة لأغراض غير قانونية أو غير مشروعة بأي شكل من الأشكال</li>
+                    <li>محاولة الوصول إلى أنظمة أو بيانات غير مصرح لك بالوصول إليها</li>
+                    <li>استخدام برمجيات آلية أو روبوتات لاستخراج البيانات بشكل جماعي (Scraping)</li>
+                    <li>إعادة نشر أو بيع أو توزيع المعلومات المستخرجة من الخدمة دون إذن كتابي</li>
+                    <li>إرسال محتوى ضار أو مسيء أو مُحرِّف عبر الخدمة</li>
+                    <li>محاولة التلاعب بأنظمة الدفع أو الاستفادة من ثغرات تقنية</li>
+                    <li>إزالة أو تعديل أي علامات تجارية أو حقوق ملكية خاصة بالخدمة</li>
+                    <li>استخدام الخدمة بشكل يُسبب إرهاقاً غير مبرر للخوادم أو البنية التحتية</li>
+                    <li>إنشاء حسابات وهمية أو استخدام هويات مزيفة للتسجيل</li>
+                    <li>مشاركة بيانات الدخول الخاصة بك مع أطراف ثالثة</li>
+                </ul>
+                <div class="legal-highlight">
+                    <strong>تحذير:</strong> في حال مخالفة هذه القواعد، نحتفظ بالحق في اتخاذ إجراءات تتراوح بين التحذير والتعليق المؤقت والحظر النهائي للحساب، مع احتفاظنا بحق اتخاذ الإجراءات القانونية اللازمة.
+                </div>
+            </div>
+
+            <!-- Section 6 -->
+            <div class="legal-card">
+                <h2><span class="section-num">6</span> الملكية الفكرية</h2>
+                <p>جميع حقوق الملكية الفكرية المتعلقة بالخدمة، بما في ذلك على سبيل المثال لا الحصر: التصميم والبرمجيات والشعارات والأيقونات والأسماء التجارية وقواعد البيانات والمحتوى النصي، هي ملك حصري لدليل الهاتف الدولي ومطوّريه. لا يمنحك استخدام الخدمة أي حق من حقوق الملكية الفكرية هذه.</p>
+                <p>لا يجوز لك نسخ أو تعديل أو ترجمة أو إعادة نشر أو بيع أو ترخيص أي جزء من الخدمة دون الحصول على إذن كتابي مسبق منا. كما لا يجوز لك استخدام أي تقنيات لاستخراج أو تجميع البيانات المتاحة عبر الخدمة لأغراض تجارية أو تنافسية.</p>
+            </div>
+
+            <!-- Section 7 -->
+            <div class="legal-card">
+                <h2><span class="section-num">7</span> دقة المعلومات وحدود المسؤولية</h2>
+                <p>نبذل قصارى جهدنا لتقديم معلومات دقيقة ومحدثة من خلال الخدمة. ومع ذلك، لا يمكننا ضمان دقة أو اكتمال أو حداثة جميع المعلومات المعروضة في كل الأوقات. قد تحتوي قواعد البيانات على أخطاء أو معلومات قديمة نتيجة التغييرات المستمرة في شبكات الاتصالات.</p>
+                <p>الخدمة مُقدمة "كما هي" و"حسب توفرها" دون أي ضمانات صريحة أو ضمنية، بما في ذلك على سبيل المثال لا الحصر: الضمانات الضمنية لقابلية التسويق أو الملاءمة لغرض معين أو عدم الانتهاك. أنت تستخدم الخدمة على مسؤوليتك الخاصة.</p>
+                <p>في أي حال من الأحوال، لن نكون مسؤولين عن أي أضرار مباشرة أو غير مباشرة أو عرضية أو تبعية أو خاصة ناشئة عن استخدامك أو عدم استخدامك للخدمة، حتى لو تم إعلامنا باحتمالية حدوث مثل هذه الأضرار.</p>
+            </div>
+
+            <!-- Section 8 -->
+            <div class="legal-card">
+                <h2><span class="section-num">8</span> المدفوعات والاسترجاع</h2>
+                <p>يتم معالجة المدفوعات عبر بوابة الدفع المعتمدة Jaib. تخضع جميع المعاملات المالية لشروط وأحكام بوابة الدفع المذكورة. الأسعار المعروضة شاملة للضريبة المعمول بها وقد تتغير وفقاً لسياسات التسعير.</p>
+                <p>في حال الرغبة في استرجاع المبلغ المدفوع، يمكنك التقديم خلال 48 ساعة من تاريخ الدفع بشرط عدم استخدام ميزات الخطة المدفوعة. يتم مراجعة طلبات الاسترجاع واتخاذ قرار بشأنها خلال مدة لا تتجاوز 5 أيام عمل، ويُعاد المبلغ عبر نفس طريقة الدفع الأصلية.</p>
+            </div>
+
+            <!-- Section 9 -->
+            <div class="legal-card">
+                <h2><span class="section-num">9</span> الإنهاء والتعليق</h2>
+                <p>نحتفظ بالحق في إنهاء أو تعليق وصولك إلى الخدمة في أي وقت ولأي سبب، بما في ذلك على سبيل المثال لا الحصر: مخالفة شروط الاستخدام، أو النشاط المشبوه، أو الطلب من جهات رسمية مختصة. في حال الإنهاء، يظل حقك في استخدام المعلومات المستخرجة سابقاً خاضعاً لقيود إعادة النشر الواردة في هذه الشروط.</p>
+                <p>يمكنك أيضاً إنهاء حسابك في أي وقت من خلال الإعدادات في حسابك الشخصي أو بتقديم طلب عبر البريد الإلكتروني. يُرجى ملاحظة أن بعض المعلومات قد تبقى في أنظمتنا وفقاً لسياسة الخصوصية المعمول بها.</p>
+            </div>
+
+            <!-- Section 10 -->
+            <div class="legal-card">
+                <h2><span class="section-num">10</span> التعديلات على الشروط</h2>
+                <p>نحتفظ بالحق في تعديل هذه الشروط في أي وقت. في حال إجراء تعديلات جوهرية، سنقوم بإشعارك عبر البريد الإلكتروني المسجل في حسابك أو من خلال إشعار بارز على الموقع. يُعدّ استمرارك في استخدام الخدمة بعد نشر الشروط المعدلة بمثابة قبول منك لها.</p>
+                <p>ننصحك بمراجعة هذه الصفحة بشكل دوري للاطلاع على آخر التحديثات. تاريخ "آخر تحديث" في أعلى هذه الصفحة يشير إلى تاريخ آخر تعديل تم إجراؤه.</p>
+            </div>
+
+            <!-- Section 11 -->
+            <div class="legal-card">
+                <h2><span class="section-num">11</span> التواصل</h2>
+                <p>إذا كانت لديك أي أسئلة أو استفسارات بخصوص شروط الاستخدام هذه، يمكنك التواصل معنا عبر:</p>
+                <ul>
+                    <li>البريد الإلكتروني: <a href="mailto:info@example.com">info@example.com</a></li>
+                    <li>صفحة اتصل بنا على الموقع</li>
+                </ul>
+                <p>سنحرص على الرد على استفساراتك في أقرب وقت ممكن خلال ساعات العمل الرسمية.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-glass">
+            <div class="footer-container">
+                <div class="footer-grid">
+                    <div>
+                        <a href="index.html" class="footer-logo">
+                            <span class="footer-logo-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+                            <span class="footer-logo-text">دليل الهاتف الدولي</span>
+                        </a>
+                        <p class="footer-description">دليل هاتف دولي شامل يساعدك على البحث عن الأرقام والتعرف على هواتف مجهولة من جميع دول العالم.</p>
+                    </div>
+                    <div>
+                        <h3 class="footer-heading">روابط سريعة</h3>
+                        <ul class="footer-links">
+                            <li><a href="index.html">الرئيسية</a></li>
+                            <li><a href="search.html">البحث المتقدم</a></li>
+                            <li><a href="plans.html">الباقات والأسعار</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="footer-heading">قانوني</h3>
+                        <ul class="footer-links">
+                            <li><a href="privacy.html">سياسة الخصوصية</a></li>
+                            <li><a href="terms.html">شروط الاستخدام</a></li>
+                        </ul>
+                        <h3 class="footer-heading" style="margin-top:1.5rem">تواصل معنا</h3>
+                        <ul class="footer-links">
+                            <li><a href="mailto:info@example.com">info@example.com</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p class="footer-copyright">&copy; 2026 <strong>دليل الهاتف الدولي</strong>. جميع الحقوق محفوظة.</p>
+                    <p style="color:var(--text-muted);font-size:.85rem">صنع بـ <span style="color:var(--danger)">&hearts;</span> في اليمن</p>
+                </div>
+            </div>
+        </div>
+        <button class="back-to-top" id="backToTop"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
+    </footer>
+
+    <script>
+    // Theme toggle
+    document.getElementById('themeToggle').addEventListener('click', function() {
+        var c = document.documentElement.getAttribute('data-theme');
+        var n = c === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', n);
+        localStorage.setItem('theme', n);
+        document.querySelector('.icon-sun').style.display = n === 'dark' ? 'none' : 'block';
+        document.querySelector('.icon-moon').style.display = n === 'dark' ? 'block' : 'none';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
+    // Hamburger
+    var hb = document.getElementById('hamburgerBtn');
+    var mn = document.getElementById('mobileNav');
+    var mo = document.getElementById('mobileOverlay');
+    function openMenu() { hb.classList.add('active'); mn.classList.add('show'); mo.classList.add('show'); document.body.style.overflow='hidden'; }
+    function closeMenu() { hb.classList.remove('active'); mn.classList.remove('show'); mo.classList.remove('show'); document.body.style.overflow=''; }
+    hb.addEventListener('click', function() { mn.classList.contains('show') ? closeMenu() : openMenu(); });
+    mo.addEventListener('click', closeMenu);
+
+    // Back to top
+    var btt = document.getElementById('backToTop');
+    window.addEventListener('scroll', function() { btt.classList.toggle('show', window.scrollY > 400); });
+    btt.addEventListener('click', function() { window.scrollTo({top: 0, behavior: 'smooth'}); });
+
+    // Lucide icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    </script>
+</body>
+</html>
