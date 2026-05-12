@@ -1,0 +1,26 @@
+# Database
+database/*.db
+database/*.sqlite
+
+# Config (contains sensitive data)
+includes/config.php
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Temp
+tmp/
+temp/

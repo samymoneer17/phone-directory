@@ -1,0 +1,282 @@
+# ============================================================
+# دليل الهاتف الدولي - Apache Configuration
+# International Phone Directory
+# ============================================================
+# Security, performance, and caching configuration
+# ============================================================
+
+# ----------------------------------------------------------
+# 1. Force HTTPS (uncomment in production)
+# ----------------------------------------------------------
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteCond %{HTTPS} off
+#     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>
+
+# ----------------------------------------------------------
+# 2. Enable Rewrite Engine & UTF-8
+# ----------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+</IfModule>
+
+AddDefaultCharset UTF-8
+
+# ----------------------------------------------------------
+# 3. Security: Block Access to Sensitive Directories
+# ----------------------------------------------------------
+
+# Block includes directory
+<IfModule mod_rewrite.c>
+    RewriteRule ^includes/ - [F,L]
+    RewriteRule ^database/ - [F,L]
+</IfModule>
+
+# Block .env and .sql files
+<FilesMatch "\.(env|sql|log|bak|old|swp|dist|config\.php|local)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Block access to hidden files (e.g., .htaccess, .git)
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Block access to sensitive file types
+<FilesMatch "\.(php\d|phtml|phps|inc|tpl|sh|py|rb|pl)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Allow only index.php in admin API
+<FilesMatch "^(admin)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ----------------------------------------------------------
+# 4. Security Headers
+# ----------------------------------------------------------
+<IfModule mod_headers.c>
+    # Prevent MIME-type sniffing
+    Header set X-Content-Type-Options "nosniff"
+
+    # Prevent clickjacking
+    Header set X-Frame-Options "DENY"
+
+    # XSS Protection
+    Header set X-XSS-Protection "1; mode=block"
+
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Permissions Policy
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+
+    # HSTS (uncomment in production with HTTPS)
+    # Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Control-Allow-Origin (adjust for your domain)
+    # Header set Access-Control-Allow-Origin "https://yourdomain.com"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, X-CSRF-Token, X-Requested-With"
+    Header set Access-Control-Max-Age "86400"
+</IfModule>
+
+# ----------------------------------------------------------
+# 5. Block Common Attack Patterns
+# ----------------------------------------------------------
+<IfModule mod_rewrite.c>
+    # Block SQL injection attempts in URL
+    RewriteCond %{QUERY_STRING} (union|select|insert|update|delete|drop|alter|create|truncate|exec|execute|xp_cmdshell|sp_executesql) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+
+    # Block common XSS patterns
+    RewriteCond %{QUERY_STRING} (<|%3C)(script|iframe|object|embed|applet|form|input) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+
+    # Block path traversal
+    RewriteCond %{QUERY_STRING} (\.\.\/|\.\.\\) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+
+    # Block PHP code injection
+    RewriteCond %{QUERY_STRING} (\[php\]|<\?php|<\?=) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+
+    # Block suspicious user agents
+    RewriteCond %{HTTP_USER_AGENT} (sqlmap|nikto|nmap|masscan|dirbuster|gobuster|wfuzz|hydra) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+
+    # Block empty User-Agent
+    RewriteCond %{HTTP_USER_AGENT} ^$
+    RewriteRule ^(.*)$ - [F,L]
+
+    # Block request methods other than GET, POST, HEAD, OPTIONS
+    RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE|PATCH|TRACE|CONNECT) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+</IfModule>
+
+# ----------------------------------------------------------
+# 6. Gzip Compression
+# ----------------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/atom+xml
+    AddOutputFilterByType DEFLATE application/manifest+json
+    AddOutputFilterByType DEFLATE application/ld+json
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE font/woff
+    AddOutputFilterByType DEFLATE font/woff2
+    AddOutputFilterByType DEFLATE font/ttf
+    AddOutputFilterByType DEFLATE font/otf
+    AddOutputFilterByType DEFLATE font/eot
+
+    # Level 9 compression (maximum)
+    DeflateCompressionLevel 9
+
+    # Exclude proxies with known issues
+    BrowserMatch ^Mozilla/4 gzip-only-text/html
+    BrowserMatch ^Mozilla/4\.0[678] no-gzip
+    BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
+    BrowserMatch \bMSI[E] !no-gzip !gzip-only-text/html
+    Header append Vary User-Agent env=!dont-vary
+</IfModule>
+
+# ----------------------------------------------------------
+# 7. Browser Caching for Static Assets
+# ----------------------------------------------------------
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+
+    # HTML documents
+    ExpiresByType text/html "access plus 0 seconds"
+
+    # CSS & JavaScript
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType application/x-javascript "access plus 1 year"
+    ExpiresByType text/javascript "access plus 1 year"
+
+    # Images
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    ExpiresByType image/bmp "access plus 1 year"
+
+    # Fonts
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType font/eot "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+
+    # Data
+    ExpiresByType application/json "access plus 0 seconds"
+    ExpiresByType application/xml "access plus 0 seconds"
+    ExpiresByType text/xml "access plus 0 seconds"
+
+    # Cache-Control headers
+    <IfModule mod_headers.c>
+        Header set Cache-Control "public, max-age=31536000, immutable" "expr=%{CONTENT_TYPE} =~ m#^(image|font|text/css|application/javascript)#"
+        Header set Cache-Control "no-cache, no-store, must-revalidate" "expr=%{CONTENT_TYPE} =~ m#^text/html#"
+    </IfModule>
+</IfModule>
+
+# ----------------------------------------------------------
+# 8. ETags Configuration
+# ----------------------------------------------------------
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>
+FileETag None
+
+# ----------------------------------------------------------
+# 9. Server Information
+# ----------------------------------------------------------
+<IfModule mod_security2.c>
+    SecServerSignature "Server"
+</IfModule>
+<IfModule mod_headers.c>
+    ServerSignature Off
+    Header unset Server
+    Header unset X-Powered-By
+    Header unset X-Powered-By "PHP"
+</IfModule>
+
+# ----------------------------------------------------------
+# 10. Custom Error Pages
+# ----------------------------------------------------------
+ErrorDocument 400 /index.php?error=400
+ErrorDocument 401 /index.php?error=401
+ErrorDocument 403 /index.php?error=403
+ErrorDocument 404 /index.php?error=404
+ErrorDocument 500 /index.php?error=500
+
+# ----------------------------------------------------------
+# 11. PHP Settings (via .htaccess)
+# ----------------------------------------------------------
+<IfModule mod_php.c>
+    php_value session.cookie_httponly 1
+    php_value session.cookie_samesite "Lax"
+    php_value session.use_strict_mode 1
+    php_value expose_php Off
+    php_value display_errors Off
+    php_value log_errors On
+    php_value max_execution_time 30
+    php_value max_input_time 60
+    php_value post_max_size 8M
+    php_value upload_max_filesize 5M
+    php_value memory_limit 128M
+</IfModule>
+
+# ----------------------------------------------------------
+# 12. Prevent Directory Listing
+# ----------------------------------------------------------
+Options -Indexes
+Options -MultiViews
+
+# ----------------------------------------------------------
+# 13. File Upload Limits
+# ----------------------------------------------------------
+<IfModule mod_security2.c>
+    SecRequestBodyLimit 8388608
+    SecRequestBodyNoFilesLimit 131072
+</IfModule>
