@@ -58,6 +58,8 @@ defined('BCRYPT_COST') or define('BCRYPT_COST', 12);
 defined('RESET_TOKEN_LENGTH') or define('RESET_TOKEN_LENGTH', 32);
 defined('RESET_TOKEN_EXPIRY') or define('RESET_TOKEN_EXPIRY', 3600);
 defined('CSRF_TOKEN_LENGTH') or define('CSRF_TOKEN_LENGTH', 32);
+defined('CSRF_SECRET') or define('CSRF_SECRET', getenv('CSRF_SECRET') ?: 'phone_dir_csrf_hmac_secret_2024_xK9mQ3vR7wZ');
+defined('CSRF_TOKEN_TTL') or define('CSRF_TOKEN_TTL', 3600); // 1 hour
 defined('MAX_LOGIN_ATTEMPTS') or define('MAX_LOGIN_ATTEMPTS', 5);
 defined('LOGIN_LOCKOUT_TIME') or define('LOGIN_LOCKOUT_TIME', 900);
 defined('PASSWORD_MIN_LENGTH') or define('PASSWORD_MIN_LENGTH', 8);
@@ -71,6 +73,11 @@ defined('AUTO_BLOCK_VIOLATIONS') or define('AUTO_BLOCK_VIOLATIONS', 20);
 defined('IP_BLOCK_DEFAULT_DURATION') or define('IP_BLOCK_DEFAULT_DURATION', 3600);
 defined('MAX_UPLOAD_SIZE') or define('MAX_UPLOAD_SIZE', 5242880);
 defined('HONEYPOT_FIELD_NAME') or define('HONEYPOT_FIELD_NAME', 'website');
+
+// ============================================================
+// Vercel Cron Secret (optional, for scheduled tasks)
+// ============================================================
+defined('VERCEL_CRON_SECRET') or define('VERCEL_CRON_SECRET', getenv('VERCEL_CRON_SECRET') ?: '');
 
 // ============================================================
 // Rate Limiting

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="إنشاء حساب جديد في دليل الهاتف الدولي">
     <meta name="theme-color" content="#0f172a">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <title>إنشاء حساب - دليل الهاتف الدولي</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -388,8 +389,14 @@
             formError.classList.add('show');
             return;
         }
-        if (password.length < 6) {
-            formErrorText.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+        if (password.length < 8) {
+            formErrorText.textContent = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+            formError.classList.add('show');
+            return;
+        }
+        // Check password complexity: uppercase, lowercase, number, special char
+        if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password) || !/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\`~]/.test(password)) {
+            formErrorText.textContent = 'كلمة المرور يجب أن تحتوي على: حرف كبير، حرف صغير، رقم، وحرف خاص';
             formError.classList.add('show');
             return;
         }

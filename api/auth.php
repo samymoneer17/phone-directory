@@ -43,9 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
-// IMPORTANT: Initialize secure session BEFORE CSRF check
-// This sets session_name to 'phone_dir_sid' so we read from the same
-// session that csrf.php wrote the token into
+// Initialize secure session for user login state
+// CSRF tokens are now stateless (HMAC-based) — no session dependency
 Security::secureSession();
 
 // ============================================================
@@ -150,8 +149,8 @@ try {
             if (empty($data['email']) || !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
                 jsonResponse(['success' => false, 'error' => 'بريد إلكتروني غير صالح']);
             }
-            if (empty($data['password']) || strlen($data['password']) < 6) {
-                jsonResponse(['success' => false, 'error' => 'كلمة المرور يجب أن تكون 6 أحرف على الأقل']);
+            if (empty($data['password']) || strlen($data['password']) < 8) {
+                jsonResponse(['success' => false, 'error' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل']);
             }
 
             $result = Auth::register($data);

@@ -1,7 +1,10 @@
 <?php
 /**
- * CSRF Token API Endpoint (Enhanced Security)
+ * CSRF Token API Endpoint (Stateless HMAC-based)
  * Returns a fresh CSRF token for form submissions
+ * 
+ * Token format: {random}.{timestamp}.{hmac}
+ * No session storage needed — works on Vercel serverless
  */
 
 require_once __DIR__ . '/../includes/config.php';
@@ -38,10 +41,8 @@ if (!$rateCheck['allowed']) {
     exit;
 }
 
-// Initialize session for CSRF
-Security::secureSession();
-
-$token = Security::getCSRFToken();
+// Generate a stateless CSRF token (no session needed)
+$token = Security::generateCSRFToken();
 
 jsonResponse([
     'success' => true,

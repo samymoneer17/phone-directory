@@ -614,55 +614,65 @@ class Security
     }
 
     // ================================================================
-    // CSRF PROTECTION
+    // CSRF PROTECTION (Stateless HMAC-based for Vercel compatibility)
+    // ================================================================
+    // Token format: {random}.{timestamp}.{hmac}
+    // The token is self-contained — no session storage needed.
+    // This works on Vercel serverless where /tmp doesn't persist
+    // between separate function invocations.
     // ================================================================
 
+    /**
+     * Generate a stateless CSRF token (no session required)
+     * Format: random_hex.timestamp.hmac_hex
+     */
     public static function generateCSRFToken(): string
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        $random   = bin2hex(random_bytes(CSRF_TOKEN_LENGTH));
+        $time     = (string) time();
+        $payload  = $random . '.' . $time;
+        $hmac     = hash_hmac('sha256', $payload, CSRF_SECRET);
 
-        $token = bin2hex(random_bytes(CSRF_TOKEN_LENGTH));
-
-        $_SESSION['csrf_token'] = $token;
-        $_SESSION['csrf_token_time'] = time();
-
-        return $token;
+        return $payload . '.' . $hmac;
     }
 
+    /**
+     * Verify a stateless CSRF token
+     * Parses the token, recomputes HMAC, checks expiry
+     */
     public static function verifyCSRFToken(string $token): bool
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if (empty($token) || empty($_SESSION['csrf_token'])) {
+        if (empty($token)) {
             return false;
         }
 
-        $result = hash_equals($_SESSION['csrf_token'], $token);
-
-        // One-time use
-        if ($result) {
-            unset($_SESSION['csrf_token']);
-            unset($_SESSION['csrf_token_time']);
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            return false;
         }
 
-        return $result;
+        list($random, $timestamp, $hmac) = $parts;
+
+        // Verify HMAC
+        $expectedHmac = hash_hmac('sha256', $random . '.' . $timestamp, CSRF_SECRET);
+        if (!hash_equals($expectedHmac, $hmac)) {
+            return false;
+        }
+
+        // Check expiry
+        if (time() - (int) $timestamp > CSRF_TOKEN_TTL) {
+            return false;
+        }
+
+        return true;
     }
 
-    public static function getCSRFToken(): ?string
+    /**
+     * Get a CSRF token — always generates a fresh one (stateless)
+     */
+    public static function getCSRFToken(): string
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if (empty($_SESSION['csrf_token'])) {
-            return self::generateCSRFToken();
-        }
-
-        return $_SESSION['csrf_token'];
+        return self::generateCSRFToken();
     }
 
     public static function csrfField(): string
