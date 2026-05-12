@@ -23,7 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'method_not_allowed'], 405);
 }
 
-require_once __DIR__ '/../../includes/config.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/database.php';
 
 // Rate limiting
 $ip = Security::getClientIP();
