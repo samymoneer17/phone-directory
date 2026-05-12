@@ -25,12 +25,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Require authentication for all payment actions
 Auth::requireAuth();
 
+// Read input: support both JSON body and form-data
+$input = Security::getJsonInput();
+if ($input === null) {
+    $input = $_POST;
+}
+
 // CSRF token verification
-if (!isset($_POST['csrf_token']) || !Security::verifyCSRFToken($_POST['csrf_token'])) {
+$csrfToken = $input['csrf_token'] ?? '';
+if (empty($csrfToken) || !Security::verifyCSRFToken($csrfToken)) {
     jsonResponse(['success' => false, 'error' => 'رمز التحقق غير صالح'], 403);
 }
 
-$action = post('action');
+$action = $input['action'] ?? '';
 
 try {
     $currentUser = Auth::getCurrentUser();
@@ -42,8 +49,8 @@ try {
         // =====================================================
         case 'process':
             $userId        = $currentUser['id'];
-            $plan          = Security::sanitizeInput(post('plan'));
-            $transactionId = Security::sanitizeInput(post('transaction_id'));
+            $plan          = Security::sanitizeInput($input['plan'] ?? '');
+            $transactionId = Security::sanitizeInput($input['transaction_id'] ?? '');
 
             // Validate plan
             if (!validatePlan($plan)) {
@@ -131,7 +138,7 @@ try {
                 ]);
             }
 
-            $newState = post('hide') === 'true' ? 1 : 0;
+            $newState = ($input['hide'] ?? '') === 'true' ? 1 : 0;
 
             // update() signature: update(string $table, array $data, string $where, array $whereParams = [])
             update('users', ['is_phone_hidden' => $newState], 'id = :id', [':id' => $userId]);

@@ -23,12 +23,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Require authentication for all settings actions
 Auth::requireAuth();
 
+// Read input: support both JSON body and form-data
+$input = Security::getJsonInput();
+if ($input === null) {
+    $input = $_POST;
+}
+
 // CSRF token verification
-if (!isset($_POST['csrf_token']) || !Security::verifyCSRFToken($_POST['csrf_token'])) {
+$csrfToken = $input['csrf_token'] ?? '';
+if (empty($csrfToken) || !Security::verifyCSRFToken($csrfToken)) {
     jsonResponse(['success' => false, 'error' => 'رمز التحقق غير صالح'], 403);
 }
 
-$action = post('action');
+$action = $input['action'] ?? '';
 
 try {
     $currentUser = Auth::getCurrentUser();
@@ -41,8 +48,8 @@ try {
         case 'update-profile':
             $userId = $currentUser['id'];
 
-            $name  = Security::sanitizeInput(post('name'));
-            $phone = Security::sanitizeInput(post('phone'));
+            $name  = Security::sanitizeInput($input['name'] ?? '');
+            $phone = Security::sanitizeInput($input['phone'] ?? '');
 
             if (empty($name) || strlen($name) < 3) {
                 jsonResponse(['success' => false, 'error' => 'الاسم مطلوب (3 أحرف على الأقل)']);
@@ -82,9 +89,9 @@ try {
         case 'update-password':
             $userId = $currentUser['id'];
 
-            $oldPassword    = post('current_password');
-            $newPassword    = post('new_password');
-            $confirmPassword = post('confirm_password');
+            $oldPassword    = $input['current_password'] ?? '';
+            $newPassword    = $input['new_password'] ?? '';
+            $confirmPassword = $input['confirm_password'] ?? '';
 
             if (empty($oldPassword) || empty($newPassword)) {
                 jsonResponse(['success' => false, 'error' => 'جميع الحقول مطلوبة']);

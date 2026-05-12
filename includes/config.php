@@ -13,7 +13,6 @@ defined('APP_STARTED') || define('APP_STARTED', true);
 // ============================================================
 define('SITE_NAME', 'دليل الهاتف الدولي');
 define('SITE_NAME_EN', 'International Phone Directory');
-define('SITE_URL', '/');
 define('SITE_DESCRIPTION', 'دليل هاتف دولي شامل للبحث عن الأرقام والتعرف على هواتف مجهولة من جميع دول العالم');
 define('SITE_KEYWORDS', 'دليل هاتف, بحث عن رقم, معرفة صاحب الرقم, هاتف دولي, رقم مجهول, Yemen Phone Directory');
 

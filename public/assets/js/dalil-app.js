@@ -6,10 +6,13 @@
 const DalilApp = {
     apiBase: '/api',
 
-    // Get CSRF token from server
+    // Get a fresh CSRF token from server
     async getCSRFToken() {
         try {
-            const res = await fetch(this.apiBase + '/csrf.php');
+            const res = await fetch(this.apiBase + '/csrf.php', {
+                credentials: 'same-origin',
+            });
+            if (!res.ok) return '';
             const data = await res.json();
             if (data.success && data.csrf_token) {
                 sessionStorage.setItem('csrf_token', data.csrf_token);
@@ -21,6 +24,7 @@ const DalilApp = {
         return '';
     },
 
+    // Get cached CSRF token (no server request)
     getCSRFTokenSync() {
         return sessionStorage.getItem('csrf_token') || '';
     },
@@ -28,7 +32,9 @@ const DalilApp = {
     // Check auth status
     async checkAuth() {
         try {
-            const res = await fetch(this.apiBase + '/check-auth.php');
+            const res = await fetch(this.apiBase + '/check-auth.php', {
+                credentials: 'same-origin',
+            });
             const data = await res.json();
             if (data.success) {
                 if (data.logged_in) {
@@ -97,16 +103,40 @@ const DalilApp = {
         }
     },
 
-    // API POST with CSRF
-    async post(endpoint, data = {}) {
+    // API POST with CSRF - auto-retries on CSRF failure
+    async post(endpoint, data = {}, retries = 1) {
+        // Get fresh CSRF token before each request
         const token = await this.getCSRFToken();
         data.csrf_token = token;
-        const res = await fetch(this.apiBase + '/' + endpoint, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data),
-        });
-        return res.json();
+
+        try {
+            const res = await fetch(this.apiBase + '/' + endpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'same-origin',
+                body: JSON.stringify(data),
+            });
+            const result = await res.json();
+
+            // If CSRF invalid, get a new token and retry once
+            if (!result.success && res.status === 403 && retries > 0) {
+                console.warn('CSRF token expired, refreshing and retrying...');
+                const newToken = await this.getCSRFToken();
+                data.csrf_token = newToken;
+                const retryRes = await fetch(this.apiBase + '/' + endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data),
+                });
+                return retryRes.json();
+            }
+
+            return result;
+        } catch(e) {
+            console.error('POST request failed:', e);
+            return {success: false, error: 'فشل الاتصال بالخادم'};
+        }
     },
 
     // Initialize

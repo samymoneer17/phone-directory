@@ -6,6 +6,8 @@
  * ============================================================
  * Handles: login, register, forgot-password, reset-password,
  *          logout
+ * 
+ * Accepts both JSON and form-data POST requests
  */
 
 require_once __DIR__ . '/../includes/config.php';
@@ -21,12 +23,26 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
+// ============================================================
+// Read input: support both JSON body and form-data ($_POST)
+// ============================================================
+$input = Security::getJsonInput();
+if ($input === null) {
+    // Fallback to $_POST for form-data submissions
+    $input = $_POST;
+}
+
+if (empty($input)) {
+    jsonResponse(['success' => false, 'error' => 'No data received'], 400);
+}
+
 // Get action
-$action = post('action');
+$action = $input['action'] ?? '';
 
 // CSRF check for all actions except login (to allow initial load)
 if ($action !== 'login') {
-    if (!isset($_POST['csrf_token']) || !Security::verifyCSRFToken($_POST['csrf_token'])) {
+    $csrfToken = $input['csrf_token'] ?? '';
+    if (empty($csrfToken) || !Security::verifyCSRFToken($csrfToken)) {
         jsonResponse(['success' => false, 'error' => 'رمز التحقق غير صالح'], 403);
     }
 }
@@ -38,7 +54,7 @@ try {
         // تسجيل الدخول
         // =====================================================
         case 'login':
-            // Rate limit check — checkRateLimit() returns {allowed, remaining, resetIn}
+            // Rate limit check
             $ip = Security::getClientIP();
             $rateCheck = Security::checkRateLimit($ip, 'login', 5, 300);
 
@@ -51,14 +67,13 @@ try {
                 ], 429);
             }
 
-            $email    = Security::sanitizeInput(post('email'));
-            $password = post('password');
+            $email    = Security::sanitizeInput($input['email'] ?? '');
+            $password = $input['password'] ?? '';
 
             if (empty($email) || empty($password)) {
                 jsonResponse(['success' => false, 'error' => 'البريد وكلمة المرور مطلوبان']);
             }
 
-            // Auth::login() signature: login(string $email, string $password)
             $result = Auth::login($email, $password);
 
             if ($result['success']) {
@@ -66,7 +81,7 @@ try {
                 jsonResponse([
                     'success' => true,
                     'message' => 'تم تسجيل الدخول بنجاح',
-                    'redirect' => 'dashboard.php',
+                    'redirect' => 'dashboard.html',
                     'user'    => [
                         'id'    => $result['user']['id'],
                         'name'  => $result['user']['name'],
@@ -97,10 +112,10 @@ try {
             }
 
             $data = [
-                'name'     => Security::sanitizeInput(post('name')),
-                'email'    => Security::sanitizeInput(post('email')),
-                'password' => post('password'),
-                'phone'    => Security::sanitizeInput(post('phone')),
+                'name'     => Security::sanitizeInput($input['name'] ?? ''),
+                'email'    => Security::sanitizeInput($input['email'] ?? ''),
+                'password' => $input['password'] ?? '',
+                'phone'    => Security::sanitizeInput($input['phone'] ?? ''),
             ];
 
             // Validation
@@ -114,19 +129,18 @@ try {
                 jsonResponse(['success' => false, 'error' => 'كلمة المرور يجب أن تكون 6 أحرف على الأقل']);
             }
 
-            // Auth::register() signature: register(array $data)
-            // Returns: {success, message, user?}
             $result = Auth::register($data);
 
             if ($result['success']) {
                 jsonResponse([
                     'success' => true,
                     'message' => 'تم إنشاء الحساب بنجاح',
-                    'redirect' => 'dashboard.php',
+                    'redirect' => 'dashboard.html',
                     'user'    => [
                         'id'    => $result['user']['id'] ?? null,
                         'name'  => $result['user']['name'] ?? $data['name'],
                         'email' => $result['user']['email'] ?? $data['email'],
+                        'plan'  => $result['user']['plan'] ?? 'FREE',
                     ],
                 ]);
             } else {
@@ -138,36 +152,28 @@ try {
         // استعادة كلمة المرور (إرسال رابط)
         // =====================================================
         case 'forgot-password':
-            $email = Security::sanitizeInput(post('email'));
+            $email = Security::sanitizeInput($input['email'] ?? '');
 
             if (empty($email)) {
                 jsonResponse(['success' => false, 'error' => 'البريد الإلكتروني مطلوب']);
             }
 
-            // Auth::forgotPassword() signature: forgotPassword(string $email)
-            // Always returns success to prevent email enumeration
             $result = Auth::forgotPassword($email);
 
-            if ($result['success']) {
-                jsonResponse([
-                    'success' => true,
-                    'message' => 'إذا كان البريد مسجلاً، سيتم إرسال رابط الاستعادة',
-                ]);
-            } else {
-                jsonResponse([
-                    'success' => true,
-                    'message' => 'إذا كان البريد مسجلاً، سيتم إرسال رابط الاستعادة',
-                ]);
-            }
+            // Always return same message to prevent email enumeration
+            jsonResponse([
+                'success' => true,
+                'message' => 'إذا كان البريد مسجلاً، سيتم إرسال رابط الاستعادة',
+            ]);
             break;
 
         // =====================================================
         // إعادة تعيين كلمة المرور
         // =====================================================
         case 'reset-password':
-            $token    = post('token');
-            $password = post('password');
-            $confirm  = post('confirm_password');
+            $token    = $input['token'] ?? '';
+            $password = $input['password'] ?? '';
+            $confirm  = $input['confirm_password'] ?? '';
 
             if (empty($token) || empty($password)) {
                 jsonResponse(['success' => false, 'error' => 'بيانات غير مكتملة']);
@@ -179,15 +185,13 @@ try {
                 jsonResponse(['success' => false, 'error' => 'كلمة المرور يجب أن تكون 6 أحرف على الأقل']);
             }
 
-            // Auth::resetPassword() signature: resetPassword(string $token, string $newPassword)
-            // Returns: {success, message}
             $result = Auth::resetPassword($token, $password);
 
             if ($result['success']) {
                 jsonResponse([
                     'success' => true,
                     'message' => 'تم تغيير كلمة المرور بنجاح',
-                    'redirect' => 'login.php',
+                    'redirect' => 'login.html',
                 ]);
             } else {
                 jsonResponse(['success' => false, 'error' => $result['message']]);
@@ -207,7 +211,7 @@ try {
             jsonResponse([
                 'success'  => true,
                 'message'  => 'تم تسجيل الخروج',
-                'redirect' => 'index.php',
+                'redirect' => 'index.html',
             ]);
             break;
 
