@@ -522,6 +522,11 @@
     // Init
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
+        // Force update navbar with user data
+        try {
+            var u = DalilApp.getUser();
+            if (u) DalilApp.updateUI(u);
+        } catch(e) {}
         checkAuth();
         checkURLParams();
     });
