@@ -1,16 +1,28 @@
 <?php
 /**
  * ============================================================
- * دليل الهاتف الدولي - Search API Endpoint
+ * دليل الهاتف الدولي - Search API Endpoint (Enhanced Security)
  * International Phone Directory
  * ============================================================
  */
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
-header('Access-Control-Allow-Origin: *');
+
+// Strict CORS - not wildcard
+$origin = SITE_URL;
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    $parsed = parse_url($_SERVER['HTTP_ORIGIN']);
+    $siteParsed = parse_url(SITE_URL);
+    // Allow same origin
+    if ($parsed['host'] === $siteParsed['host']) {
+        $origin = $_SERVER['HTTP_ORIGIN'];
+    }
+}
+header('Access-Control-Allow-Origin: ' . $origin);
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -29,26 +41,35 @@ require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/database.php';
 
+// Initial security check
+Security::initialCheck();
+
 // Rate limiting
 $ip = Security::getClientIP();
 $rateCheck = Security::checkRateLimit($ip, 'search_api', RATE_LIMIT_SEARCH, RATE_LIMIT_WINDOW);
 if (!$rateCheck['allowed']) {
-    jsonResponse(['success' => false, 'error' => 'rate_limited', 'message' => 'تم تجاوز عدد الطلبات المسموح بها. حاول مرة أخرى بعد قليل.'], 429);
+    jsonResponse(['success' => false, 'error' => 'rate_limited', 'message' => 'تم تجاوز عدد الطلبات المسموح بها. حاول مرة أخرى بعد قليل.', 'retry_after' => $rateCheck['resetIn']], 429);
 }
 
-// CSRF verification
-$rawInput = file_get_contents('php://input');
-$data = json_decode($rawInput, true);
-
+// CSRF verification - use JSON input
+$data = Security::getJsonInput();
 if (!$data || empty($data['csrf_token'])) {
+    Security::logSecurityEvent('missing_csrf_search', 'WARNING', null, $ip, 'Search API called without CSRF token');
     jsonResponse(['success' => false, 'error' => 'missing_csrf', 'message' => 'رمز التحقق مطلوب'], 400);
 }
 
 if (!Security::verifyCSRFToken($data['csrf_token'])) {
+    Security::logSecurityEvent('invalid_csrf_search', 'WARNING', null, $ip, 'Invalid CSRF token on search API');
     jsonResponse(['success' => false, 'error' => 'invalid_csrf', 'message' => 'رمز التحقق غير صالح'], 403);
 }
 
 $action = $data['action'] ?? '';
+
+// Validate action - whitelist
+$allowedActions = ['detect-country', 'search'];
+if (!in_array($action, $allowedActions, true)) {
+    jsonResponse(['success' => false, 'error' => 'unknown_action', 'message' => 'إجراء غير معروف'], 400);
+}
 
 switch ($action) {
     case 'detect-country':
@@ -111,12 +132,10 @@ switch ($action) {
             $countryInfo = detectCountry($query);
         }
 
-        // Search in search_history (demo: generate results based on query)
         $results = [];
         $total = 0;
 
         if ($type === 'NUMBER') {
-            // Simulate results for phone number search
             $simResults = generateDemoResults($query, 'NUMBER', $countryInfo);
             $results = $simResults['results'];
             $total = $simResults['total'];
@@ -136,13 +155,11 @@ switch ($action) {
                 'results_count' => $total,
             ]);
 
-            // Increment search count
             Auth::incrementSearchCount($user['id']);
         } catch (\Exception $e) {
             error_log('Search history save failed: ' . $e->getMessage());
         }
 
-        // Paginate
         $perPage = 10;
         $totalPages = max(1, ceil($total / $perPage));
         $offset = ($page - 1) * $perPage;
@@ -159,9 +176,6 @@ switch ($action) {
             'remaining'  => $limit - ((int) $todayCount['cnt'] + 1),
         ]);
         break;
-
-    default:
-        jsonResponse(['success' => false, 'error' => 'unknown_action', 'message' => 'إجراء غير معروف'], 400);
 }
 
 /**
@@ -177,10 +191,9 @@ function generateDemoResults(string $query, string $type, array $countryInfo): a
         ['طارق محمد', 'منى سالم', 'أحمد علي', 'رنا علي', 'وليد سالم', 'هدى علي', 'بشر محمد', 'سحر محمد', 'لمياء أحمد', 'كمال الدين'],
     ];
 
-    $operators = ['اتصالات', 'سبايم', 'يمنين', 'تيست سبييد', 'فون', 'فاري'],
+    $operators = ['اتصالات', 'سبايم', 'يمنين', 'تيست سبييد', 'فون', 'فاري'];
     $cities = ['صنعاء', 'عدن', 'تعز', 'الحديدة', 'إب', 'المكلا', 'ذمار', 'حضرموت', 'المكلا'];
 
-    // Generate deterministic results from query
     $hash = crc32($query . $type);
     $count = 3 + ($hash % 8);
 
@@ -205,7 +218,6 @@ function generateDemoResults(string $query, string $type, array $countryInfo): a
             ];
         }
     } else {
-        // Name search - generate phone numbers for names
         $countryCodes = array_keys(COUNTRY_CODES);
         for ($i = 0; $i < $count; $i++) {
             $ccIdx = ($hash + $i * 17) % count($countryCodes);
@@ -233,8 +245,4 @@ function generateDemoResults(string $query, string $type, array $countryInfo): a
         'results' => $results,
         'total'   => $count,
     ];
-}
-
-function crc32($str) {
-    return crc32(base_convert($str, 'UTF-8', 'ISO-8859-1', true));
 }

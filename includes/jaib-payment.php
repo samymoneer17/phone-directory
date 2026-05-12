@@ -519,10 +519,17 @@ class JaibPayment
             'created_at'     => $this->createdAt,
         ];
 
+        // Encrypt session data before saving
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+        $encrypted = Security::encrypt($json, 'jaib_session_encryption_key_2024');
+
         @file_put_contents(
-            $sessionDir . '/session.json',
-            json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+            $sessionDir . '/session.enc',
+            $encrypted
         );
+
+        // Remove old plain-text session if exists
+        @unlink($sessionDir . '/session.json');
     }
 
     /**
@@ -530,26 +537,64 @@ class JaibPayment
      */
     public function loadSession(): bool
     {
-        $sessionFile = CACHE_PATH . '/jaib/session.json';
-        if (!file_exists($sessionFile)) {
+        // Try encrypted session first
+        $encryptedFile = CACHE_PATH . '/jaib/session.enc';
+        $plainFile = CACHE_PATH . '/jaib/session.json';
+
+        $sessionData = null;
+
+        if (file_exists($encryptedFile)) {
+            try {
+                $encrypted = file_get_contents($encryptedFile);
+                $decrypted = Security::decrypt($encrypted, 'jaib_session_encryption_key_2024');
+                if ($decrypted) {
+                    $sessionData = json_decode($decrypted, true);
+                }
+            } catch (\Exception $e) {
+                error_log('Jaib encrypted session load failed: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback to plain text (migration)
+        if (!$sessionData && file_exists($plainFile)) {
+            try {
+                $sessionData = json_decode(file_get_contents($plainFile), true);
+                // If we loaded plain text, re-save as encrypted
+                if ($sessionData) {
+                    $this->phone       = $sessionData['phone'] ?? null;
+                    $this->password    = $sessionData['password'] ?? null;
+                    $this->userName    = $sessionData['user_name'] ?? null;
+                    $this->accessToken = $sessionData['access_token'] ?? null;
+                    $this->sessionKey  = base64_decode($sessionData['session_key_b64'] ?? '');
+                    $this->sessionIv   = base64_decode($sessionData['session_iv_b64'] ?? '');
+                    $this->clientKey   = base64_decode($sessionData['client_key_b64'] ?? '');
+                    $this->servers     = $sessionData['servers'] ?? $this->bootstrapServers;
+                    $this->createdAt   = $sessionData['created_at'] ?? null;
+
+                    // Re-save encrypted
+                    $this->saveSession();
+                    return true;
+                }
+            } catch (\Exception $e) {
+                // Remove corrupt plain file
+                @unlink($plainFile);
+            }
+        }
+
+        if (!$sessionData || empty($sessionData['session_key_b64'])) {
             return false;
         }
 
         try {
-            $data = json_decode(file_get_contents($sessionFile), true);
-            if (!$data || empty($data['session_key_b64'])) {
-                return false;
-            }
-
-            $this->phone       = $data['phone'] ?? null;
-            $this->password    = $data['password'] ?? null;
-            $this->userName    = $data['user_name'] ?? null;
-            $this->accessToken = $data['access_token'] ?? null;
-            $this->sessionKey  = base64_decode($data['session_key_b64']);
-            $this->sessionIv   = base64_decode($data['session_iv_b64']);
-            $this->clientKey   = base64_decode($data['client_key_b64']);
-            $this->servers     = $data['servers'] ?? $this->bootstrapServers;
-            $this->createdAt   = $data['created_at'] ?? null;
+            $this->phone       = $sessionData['phone'] ?? null;
+            $this->password    = $sessionData['password'] ?? null;
+            $this->userName    = $sessionData['user_name'] ?? null;
+            $this->accessToken = $sessionData['access_token'] ?? null;
+            $this->sessionKey  = base64_decode($sessionData['session_key_b64']);
+            $this->sessionIv   = base64_decode($sessionData['session_iv_b64']);
+            $this->clientKey   = base64_decode($sessionData['client_key_b64']);
+            $this->servers     = $sessionData['servers'] ?? $this->bootstrapServers;
+            $this->createdAt   = $sessionData['created_at'] ?? null;
 
             return true;
         } catch (\Exception $e) {

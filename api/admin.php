@@ -1,11 +1,11 @@
 <?php
 /**
  * ============================================================
- * دليل الهاتف الدولي - Admin API Endpoint
+ * دليل الهاتف الدولي - Admin API Endpoint (Enhanced Security)
  * International Phone Directory
  * ============================================================
  * POST-only API for admin panel CRUD operations.
- * Requires admin authentication + CSRF verification.
+ * Requires: admin authentication + CSRF verification + IP check
  */
 
 // Ensure this is a POST request
@@ -17,6 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 
+// Initial security check (IP blocked, payload size)
+Security::initialCheck();
+
 // Initialize session and security
 Security::secureSession();
 
@@ -26,11 +29,13 @@ Auth::requireAdmin();
 // Get current admin user
 $adminUser = Auth::getCurrentUser();
 if (!$adminUser || $adminUser['role'] !== 'ADMIN') {
+    Security::logSecurityEvent('unauthorized_admin_api', 'CRITICAL',
+        $adminUser['id'] ?? null, Security::getClientIP(), 'Non-admin tried to access admin API');
     jsonResponse(['success' => false, 'message' => 'غير مصرح بالوصول'], 403);
 }
 
-// Read JSON input
-$input = json_decode(file_get_contents('php://input'), true);
+// Read JSON input with size limit
+$input = Security::getJsonInput();
 if (!$input || !is_array($input)) {
     $input = $_POST;
 }
@@ -38,15 +43,26 @@ if (!$input || !is_array($input)) {
 // Verify CSRF token
 $csrfToken = $input['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
 if (!Security::verifyCSRFToken($csrfToken)) {
+    Security::logSecurityEvent('admin_csrf_fail', 'CRITICAL', $adminUser['id'],
+        Security::getClientIP(), 'Invalid CSRF token on admin API');
     jsonResponse(['success' => false, 'message' => 'رمز CSRF غير صالح'], 403);
 }
 
-// Get requested action
+// Get requested action - whitelist validation
 $action = $input['action'] ?? '';
-$action = Security::sanitizeInput($action);
+$action = preg_replace('/[^a-zA-Z0-9_\-\/]/', '', $action);
 
-if (empty($action)) {
-    jsonResponse(['success' => false, 'message' => 'الإجراء غير محدد'], 400);
+$allowedActions = [
+    'users/list', 'users/update', 'users/delete', 'users/ban', 'users/detail',
+    'payments/list', 'payments/approve', 'payments/reject', 'payments/delete',
+    'logs/list', 'logs/clear',
+    'stats/dashboard',
+    'security/blocked-ips', 'security/block-ip', 'security/unblock-ip',
+    'security/events',
+];
+
+if (empty($action) || !in_array($action, $allowedActions, true)) {
+    jsonResponse(['success' => false, 'message' => 'الإجراء غير موجود'], 400);
 }
 
 // Rate limiting for admin API
@@ -61,71 +77,71 @@ if (!$rateCheck['allowed']) {
 // ============================================================
 try {
     switch ($action) {
-        // --------------------------------------------------
-        // USERS ACTIONS
-        // --------------------------------------------------
+        // USERS
         case 'users/list':
             handleUsersList($input);
             break;
-
         case 'users/update':
             handleUsersUpdate($input);
             break;
-
         case 'users/delete':
             handleUsersDelete($input);
             break;
-
         case 'users/ban':
             handleUsersBan($input);
             break;
-
         case 'users/detail':
             handleUsersDetail($input);
             break;
 
-        // --------------------------------------------------
-        // PAYMENTS ACTIONS
-        // --------------------------------------------------
+        // PAYMENTS
         case 'payments/list':
             handlePaymentsList($input);
             break;
-
         case 'payments/approve':
             handlePaymentsApprove($input);
             break;
-
         case 'payments/reject':
             handlePaymentsReject($input);
             break;
-
         case 'payments/delete':
             handlePaymentsDelete($input);
             break;
 
-        // --------------------------------------------------
-        // LOGS ACTIONS
-        // --------------------------------------------------
+        // LOGS
         case 'logs/list':
             handleLogsList($input);
             break;
-
         case 'logs/clear':
             handleLogsClear($input);
             break;
 
-        // --------------------------------------------------
-        // STATS ACTIONS
-        // --------------------------------------------------
+        // STATS
         case 'stats/dashboard':
             handleDashboardStats();
             break;
 
+        // SECURITY
+        case 'security/blocked-ips':
+            handleBlockedIPs();
+            break;
+        case 'security/block-ip':
+            handleBlockIP($input);
+            break;
+        case 'security/unblock-ip':
+            handleUnblockIP($input);
+            break;
+        case 'security/events':
+            handleSecurityEvents($input);
+            break;
+
         default:
-            jsonResponse(['success' => false, 'message' => 'الإجراء غير موجود: ' . sanitizeOutput($action)], 400);
+            jsonResponse(['success' => false, 'message' => 'الإجراء غير موجود'], 400);
     }
 } catch (Exception $e) {
     error_log('Admin API Error [' . $action . ']: ' . $e->getMessage());
+    Security::logSecurityEvent('admin_api_error', 'WARNING', $adminUser['id'] ?? null,
+        Security::getClientIP(), 'Admin API error: ' . $e->getMessage());
     jsonResponse(['success' => false, 'message' => 'حدث خطأ في الخادم'], 500);
 }
 
@@ -157,7 +173,7 @@ function handleUsersList(array $input): void
         $params[':plan'] = $plan;
     }
 
-    if (!empty($role) && in_array($role, ['USER', 'ADMIN'])) {
+    if (!empty($role) && in_array($role, ['USER', 'ADMIN', 'BANNED'])) {
         $where[] = "role = :role";
         $params[':role'] = $role;
     }
@@ -174,27 +190,24 @@ function handleUsersList(array $input): void
 
     $whereClause = implode(' AND ', $where);
 
-    // Total count
     $total = (int) db()->fetch(
         "SELECT COUNT(*) as cnt FROM users WHERE {$whereClause}",
         $params
     )['cnt'];
 
-    // Get users
     $offset = ($page - 1) * $perPage;
     $params[':offset'] = $offset;
     $params[':limit'] = $perPage;
 
     $users = db()->fetchAll(
         "SELECT id, name, email, phone, avatar, role, plan, subscription_expires_at, 
-                is_phone_hidden, search_count, created_at, updated_at
+                is_phone_hidden, search_count, login_attempts, locked_until, created_at, updated_at
          FROM users WHERE {$whereClause}
          ORDER BY created_at DESC
          LIMIT :limit OFFSET :offset",
         $params
     );
 
-    // Format users
     $formattedUsers = [];
     foreach ($users as $user) {
         $formattedUsers[] = [
@@ -209,6 +222,8 @@ function handleUsersList(array $input): void
             'subscription_expires_at' => $user['subscription_expires_at'],
             'is_phone_hidden' => (int) $user['is_phone_hidden'],
             'search_count' => (int) $user['search_count'],
+            'login_attempts' => (int) ($user['login_attempts'] ?? 0),
+            'locked_until' => $user['locked_until'] ?? null,
             'created_at' => $user['created_at'],
             'updated_at' => $user['updated_at'],
         ];
@@ -233,7 +248,6 @@ function handleUsersUpdate(array $input): void
         jsonResponse(['success' => false, 'message' => 'معرف المستخدم غير صالح'], 400);
     }
 
-    // Don't allow admin to modify their own role
     $adminUser = Auth::getCurrentUser();
     if ($userId === (int) $adminUser['id']) {
         $role = $input['role'] ?? '';
@@ -250,7 +264,6 @@ function handleUsersUpdate(array $input): void
     $updateData = ['updated_at' => date('Y-m-d H:i:s')];
     $whereParams = [':id' => $userId];
 
-    // Name
     if (isset($input['name'])) {
         $name = Security::sanitizeInput($input['name']);
         if (empty($name) || mb_strlen($name) < 2) {
@@ -259,10 +272,9 @@ function handleUsersUpdate(array $input): void
         $updateData['name'] = $name;
     }
 
-    // Email
     if (isset($input['email'])) {
         $email = strtolower(trim($input['email']));
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (!Security::validateEmail($email)) {
             jsonResponse(['success' => false, 'message' => 'البريد الإلكتروني غير صالح'], 400);
         }
         $existing = fetch("SELECT id FROM users WHERE email = :email AND id != :id", [':email' => $email, ':id' => $userId]);
@@ -272,7 +284,6 @@ function handleUsersUpdate(array $input): void
         $updateData['email'] = $email;
     }
 
-    // Plan
     if (isset($input['plan'])) {
         $plan = strtoupper(Security::sanitizeInput($input['plan']));
         if (!isset(PLANS[$plan])) {
@@ -280,23 +291,20 @@ function handleUsersUpdate(array $input): void
         }
         $updateData['plan'] = $plan;
 
-        // If downgrading to FREE, clear subscription expiry
         if ($plan === 'FREE') {
             $updateData['subscription_expires_at'] = null;
             $updateData['is_phone_hidden'] = 0;
         }
     }
 
-    // Role
     if (isset($input['role'])) {
         $role = strtoupper(Security::sanitizeInput($input['role']));
-        if (!in_array($role, ['USER', 'ADMIN'])) {
+        if (!in_array($role, ['USER', 'ADMIN', 'BANNED'])) {
             jsonResponse(['success' => false, 'message' => 'الدور غير صالح'], 400);
         }
         $updateData['role'] = $role;
     }
 
-    // Phone hidden
     if (isset($input['is_phone_hidden'])) {
         $updateData['is_phone_hidden'] = (int) $input['is_phone_hidden'];
     }
@@ -312,6 +320,8 @@ function handleUsersUpdate(array $input): void
         'admin_user_update',
         'Updated user ID ' . $userId . ': ' . json_encode($updateData)
     );
+    Security::logSecurityEvent('admin_user_updated', 'INFO', (int) $adminUser['id'],
+        Security::getClientIP(), 'Admin updated user ID ' . $userId);
 
     jsonResponse([
         'success' => true,
@@ -341,20 +351,18 @@ function handleUsersDelete(array $input): void
         jsonResponse(['success' => false, 'message' => 'لا يمكنك حذف حساب مدير'], 400);
     }
 
-    // Delete related records first (SQLite cascades should handle this)
     db()->query("DELETE FROM search_history WHERE user_id = :uid", [':uid' => $userId]);
     db()->query("DELETE FROM payments WHERE user_id = :uid", [':uid' => $userId]);
     db()->query("DELETE FROM subscriptions WHERE user_id = :uid", [':uid' => $userId]);
     db()->query("DELETE FROM activity_logs WHERE user_id = :uid", [':uid' => $userId]);
+    db()->query("DELETE FROM login_attempts WHERE email = :email", [':email' => $user['email']]);
 
-    // Delete user
     $rows = db()->query("DELETE FROM users WHERE id = :id", [':id' => $userId])->rowCount();
 
-    Security::logActivity(
-        (int) $adminUser['id'],
-        'admin_user_delete',
-        'Deleted user: ' . $user['name'] . ' (' . $user['email'] . ')'
-    );
+    Security::logActivity((int) $adminUser['id'], 'admin_user_delete',
+        'Deleted user: ' . $user['name'] . ' (' . $user['email'] . ')');
+    Security::logSecurityEvent('admin_user_deleted', 'WARNING', (int) $adminUser['id'],
+        Security::getClientIP(), 'Admin deleted user: ' . $user['email']);
 
     jsonResponse([
         'success' => true,
@@ -380,23 +388,36 @@ function handleUsersBan(array $input): void
         jsonResponse(['success' => false, 'message' => 'المستخدم غير موجود'], 404);
     }
 
-    // Toggle ban: if already banned -> unban, otherwise -> ban
     $isBanned = ($user['role'] === 'BANNED');
     $newRole = $isBanned ? 'USER' : 'BANNED';
 
-    update('users', [
+    $updateData = [
         'role' => $newRole,
         'updated_at' => date('Y-m-d H:i:s'),
-    ], 'id = :id', [':id' => $userId]);
+    ];
+
+    if (!$isBanned) {
+        // Optionally set lock duration for ban
+        $banDuration = (int) ($input['duration'] ?? 0);
+        if ($banDuration > 0) {
+            $updateData['locked_until'] = date('Y-m-d H:i:s', time() + $banDuration);
+        }
+        // Reset login attempts
+        $updateData['login_attempts'] = 0;
+    } else {
+        $updateData['locked_until'] = null;
+    }
+
+    update('users', $updateData, 'id = :id', [':id' => $userId]);
 
     $action = $isBanned ? 'unbanned' : 'banned';
     $message = $isBanned ? 'تم إلغاء حظر المستخدم بنجاح' : 'تم حظر المستخدم بنجاح';
 
-    Security::logActivity(
-        (int) $adminUser['id'],
-        'admin_user_' . $action,
-        "{$action} user: {$user['name']} (ID: {$userId})"
-    );
+    Security::logActivity((int) $adminUser['id'], 'admin_user_' . $action,
+        "{$action} user: {$user['name']} (ID: {$userId})");
+    Security::logSecurityEvent('admin_user_' . $action, $isBanned ? 'INFO' : 'WARNING',
+        (int) $adminUser['id'], Security::getClientIP(),
+        "{$action} user: {$user['name']} (ID: {$userId})");
 
     jsonResponse([
         'success' => true,
@@ -412,41 +433,37 @@ function handleUsersDetail(array $input): void
         jsonResponse(['success' => false, 'message' => 'معرف المستخدم غير صالح'], 400);
     }
 
-    $user = fetch(
-        "SELECT * FROM users WHERE id = :id",
-        [':id' => $userId]
-    );
+    $user = fetch("SELECT * FROM users WHERE id = :id", [':id' => $userId]);
 
     if (!$user) {
         jsonResponse(['success' => false, 'message' => 'المستخدم غير موجود'], 404);
     }
 
-    // Get search history (last 20)
     $searchHistory = fetchAll(
         "SELECT id, query, query_type, country_code, results_count, created_at
-         FROM search_history 
-         WHERE user_id = :uid 
-         ORDER BY created_at DESC 
-         LIMIT 20",
+         FROM search_history WHERE user_id = :uid ORDER BY created_at DESC LIMIT 20",
         [':uid' => $userId]
     );
 
-    // Get payments
     $payments = fetchAll(
         "SELECT * FROM payments WHERE user_id = :uid ORDER BY created_at DESC LIMIT 20",
         [':uid' => $userId]
     );
 
-    // Get activity logs (last 20)
     $activityLogs = fetchAll(
         "SELECT * FROM activity_logs WHERE user_id = :uid ORDER BY created_at DESC LIMIT 20",
         [':uid' => $userId]
     );
 
-    // Get active subscription
     $subscription = fetch(
         "SELECT * FROM subscriptions WHERE user_id = :uid AND is_active = 1 ORDER BY started_at DESC LIMIT 1",
         [':uid' => $userId]
+    );
+
+    // Login attempts
+    $loginAttempts = fetchAll(
+        "SELECT * FROM login_attempts WHERE email = :email ORDER BY last_attempt_at DESC LIMIT 10",
+        [':email' => $user['email']]
     );
 
     jsonResponse([
@@ -464,6 +481,8 @@ function handleUsersDetail(array $input): void
                 'subscription_expires_at' => $user['subscription_expires_at'],
                 'is_phone_hidden' => (int) $user['is_phone_hidden'],
                 'search_count' => (int) $user['search_count'],
+                'login_attempts' => (int) ($user['login_attempts'] ?? 0),
+                'locked_until' => $user['locked_until'] ?? null,
                 'created_at' => $user['created_at'],
                 'updated_at' => $user['updated_at'],
             ],
@@ -471,6 +490,7 @@ function handleUsersDetail(array $input): void
             'payments' => $payments,
             'activity_logs' => $activityLogs,
             'subscription' => $subscription,
+            'login_attempts' => $loginAttempts,
         ],
     ]);
 }
@@ -513,13 +533,11 @@ function handlePaymentsList(array $input): void
 
     $whereClause = implode(' AND ', $where);
 
-    // Total count
     $total = (int) db()->fetch(
         "SELECT COUNT(*) as cnt FROM payments p WHERE {$whereClause}",
         $params
     )['cnt'];
 
-    // Get payments
     $offset = ($page - 1) * $perPage;
     $params[':offset'] = $offset;
     $params[':limit'] = $perPage;
@@ -555,8 +573,7 @@ function handlePaymentsApprove(array $input): void
 
     $payment = fetch(
         "SELECT p.*, u.name as user_name, u.email as user_email 
-         FROM payments p 
-         LEFT JOIN users u ON p.user_id = u.id
+         FROM payments p LEFT JOIN users u ON p.user_id = u.id
          WHERE p.id = :id",
         [':id' => $paymentId]
     );
@@ -580,10 +597,8 @@ function handlePaymentsApprove(array $input): void
     db()->beginTransaction();
 
     try {
-        // Update payment status
         update('payments', ['status' => 'APPROVED'], 'id = :id', [':id' => $paymentId]);
 
-        // Update user plan
         $updateData = [
             'plan' => $plan,
             'updated_at' => date('Y-m-d H:i:s'),
@@ -596,7 +611,6 @@ function handlePaymentsApprove(array $input): void
 
         update('users', $updateData, 'id = :id', [':id' => $payment['user_id']]);
 
-        // Create subscription record
         $startDate = date('Y-m-d H:i:s');
         $expiryDate = $planConfig['duration'] > 0
             ? date('Y-m-d H:i:s', strtotime('+' . $planConfig['duration'] . ' days'))
@@ -613,11 +627,8 @@ function handlePaymentsApprove(array $input): void
 
         db()->commit();
 
-        Security::logActivity(
-            (int) $adminUser['id'],
-            'admin_payment_approve',
-            "Approved payment ID {$paymentId} for user {$payment['user_name']} ({$payment['plan']})"
-        );
+        Security::logActivity((int) $adminUser['id'], 'admin_payment_approve',
+            "Approved payment ID {$paymentId} for user {$payment['user_name']} ({$payment['plan']})");
 
         jsonResponse([
             'success' => true,
@@ -638,8 +649,7 @@ function handlePaymentsReject(array $input): void
 
     $payment = fetch(
         "SELECT p.*, u.name as user_name 
-         FROM payments p 
-         LEFT JOIN users u ON p.user_id = u.id
+         FROM payments p LEFT JOIN users u ON p.user_id = u.id
          WHERE p.id = :id",
         [':id' => $paymentId]
     );
@@ -655,11 +665,8 @@ function handlePaymentsReject(array $input): void
     update('payments', ['status' => 'REJECTED'], 'id = :id', [':id' => $paymentId]);
 
     $adminUser = Auth::getCurrentUser();
-    Security::logActivity(
-        (int) $adminUser['id'],
-        'admin_payment_reject',
-        "Rejected payment ID {$paymentId} for user {$payment['user_name']}"
-    );
+    Security::logActivity((int) $adminUser['id'], 'admin_payment_reject',
+        "Rejected payment ID {$paymentId} for user {$payment['user_name']}");
 
     jsonResponse([
         'success' => true,
@@ -683,11 +690,8 @@ function handlePaymentsDelete(array $input): void
     $rows = db()->query("DELETE FROM payments WHERE id = :id", [':id' => $paymentId])->rowCount();
 
     $adminUser = Auth::getCurrentUser();
-    Security::logActivity(
-        (int) $adminUser['id'],
-        'admin_payment_delete',
-        "Deleted payment ID {$paymentId}"
-    );
+    Security::logActivity((int) $adminUser['id'], 'admin_payment_delete',
+        "Deleted payment ID {$paymentId}");
 
     jsonResponse([
         'success' => true,
@@ -734,13 +738,11 @@ function handleLogsList(array $input): void
 
     $whereClause = implode(' AND ', $where);
 
-    // Total count
     $total = (int) db()->fetch(
         "SELECT COUNT(*) as cnt FROM activity_logs l WHERE {$whereClause}",
         $params
     )['cnt'];
 
-    // Get logs
     $offset = ($page - 1) * $perPage;
     $params[':offset'] = $offset;
     $params[':limit'] = $perPage;
@@ -778,11 +780,8 @@ function handleLogsClear(array $input): void
 
     $rows = db()->query("DELETE FROM activity_logs")->rowCount();
 
-    Security::logActivity(
-        (int) $adminUser['id'],
-        'admin_logs_clear',
-        "Cleared all activity logs ({$rows} rows deleted)"
-    );
+    Security::logActivity((int) $adminUser['id'], 'admin_logs_clear',
+        "Cleared all activity logs ({$rows} rows deleted)");
 
     jsonResponse([
         'success' => true,
@@ -797,42 +796,37 @@ function handleLogsClear(array $input): void
 
 function handleDashboardStats(): void
 {
-    // Total users
     $totalUsers = (int) db()->fetch("SELECT COUNT(*) as cnt FROM users")['cnt'];
 
-    // Active users (subscription not expired)
     $activeUsers = (int) db()->fetch(
         "SELECT COUNT(*) as cnt FROM users WHERE plan != 'FREE' AND (subscription_expires_at IS NULL OR subscription_expires_at > :now)",
         [':now' => date('Y-m-d H:i:s')]
     )['cnt'];
 
-    // Monthly payments (this month, approved)
+    $bannedUsers = (int) db()->fetch("SELECT COUNT(*) as cnt FROM users WHERE role = 'BANNED'")['cnt'];
+
     $monthStart = date('Y-m-01 00:00:00');
     $monthlyPayments = (float) db()->fetch(
         "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'APPROVED' AND created_at >= :month_start",
         [':month_start' => $monthStart]
     )['total'];
 
-    // Today's searches
     $todayStart = date('Y-m-d 00:00:00');
     $todaySearches = (int) db()->fetch(
         "SELECT COUNT(*) as cnt FROM search_history WHERE created_at >= :today",
         [':today' => $todayStart]
     )['cnt'];
 
-    // Recent users (last 5)
     $recentUsers = db()->fetchAll(
         "SELECT id, name, email, plan, role, created_at FROM users ORDER BY created_at DESC LIMIT 5"
     );
 
-    // Recent payments (last 5)
     $recentPayments = db()->fetchAll(
         "SELECT p.*, u.name as user_name FROM payments p 
          LEFT JOIN users u ON p.user_id = u.id 
          ORDER BY p.created_at DESC LIMIT 5"
     );
 
-    // Recent activity (last 10)
     $recentLogs = db()->fetchAll(
         "SELECT l.*, u.name as user_name 
          FROM activity_logs l 
@@ -840,7 +834,6 @@ function handleDashboardStats(): void
          ORDER BY l.created_at DESC LIMIT 10"
     );
 
-    // Payment stats
     $paymentStats = db()->fetch(
         "SELECT 
             COUNT(*) as total,
@@ -851,21 +844,21 @@ function handleDashboardStats(): void
          FROM payments"
     );
 
-    // Plan distribution
     $planDistribution = db()->fetchAll(
         "SELECT plan, COUNT(*) as count FROM users GROUP BY plan"
     );
 
-    // Database size
+    // Security stats
+    $blockedIPs = (int) db()->fetch("SELECT COUNT(*) as cnt FROM blocked_ips WHERE (is_permanent = 1 OR expires_at > :now)", [':now' => date('Y-m-d H:i:s')])['cnt'];
+    $securityEvents = (int) db()->fetch("SELECT COUNT(*) as cnt FROM security_events WHERE created_at > :since", [':since' => date('Y-m-d H:i:s', time() - 86400)])['cnt'];
+    $criticalEvents = (int) db()->fetch("SELECT COUNT(*) as cnt FROM security_events WHERE severity = 'CRITICAL' AND created_at > :since", [':since' => date('Y-m-d H:i:s', time() - 86400)])['cnt'];
+
     $dbSize = 0;
     if (file_exists(DB_FILE)) {
         $dbSize = filesize(DB_FILE);
     }
 
-    // Total searches
     $totalSearches = (int) db()->fetch("SELECT COUNT(*) as cnt FROM search_history")['cnt'];
-
-    // Total logs
     $totalLogs = (int) db()->fetch("SELECT COUNT(*) as cnt FROM activity_logs")['cnt'];
 
     jsonResponse([
@@ -873,6 +866,7 @@ function handleDashboardStats(): void
         'data' => [
             'total_users' => $totalUsers,
             'active_users' => $activeUsers,
+            'banned_users' => $bannedUsers,
             'monthly_payments' => $monthlyPayments,
             'today_searches' => $todaySearches,
             'total_searches' => $totalSearches,
@@ -882,6 +876,11 @@ function handleDashboardStats(): void
             'recent_logs' => $recentLogs,
             'payment_stats' => $paymentStats,
             'plan_distribution' => $planDistribution,
+            'security' => [
+                'blocked_ips' => $blockedIPs,
+                'security_events_24h' => $securityEvents,
+                'critical_events_24h' => $criticalEvents,
+            ],
             'system_info' => [
                 'php_version' => PHP_VERSION,
                 'db_size' => $dbSize,
@@ -891,6 +890,106 @@ function handleDashboardStats(): void
                 'memory_usage' => formatFileSize(memory_get_usage(true)),
                 'memory_peak' => formatFileSize(memory_get_peak_usage(true)),
             ],
+        ],
+    ]);
+}
+
+// ============================================================
+// SECURITY HANDLERS
+// ============================================================
+
+function handleBlockedIPs(): void
+{
+    $ips = fetchAll(
+        "SELECT b.*, u.name as admin_name 
+         FROM blocked_ips b 
+         LEFT JOIN users u ON b.blocked_by = u.id 
+         WHERE b.is_permanent = 1 OR b.expires_at > :now 
+         ORDER BY b.blocked_at DESC",
+        [':now' => date('Y-m-d H:i:s')]
+    );
+
+    jsonResponse([
+        'success' => true,
+        'data' => $ips,
+    ]);
+}
+
+function handleBlockIP(array $input): void
+{
+    $ip = Security::sanitizeInput($input['ip'] ?? '');
+    $reason = Security::sanitizeInput($input['reason'] ?? '');
+    $duration = (int) ($input['duration'] ?? 0); // 0 = permanent
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        jsonResponse(['success' => false, 'message' => 'عنوان IP غير صالح'], 400);
+    }
+
+    $adminUser = Auth::getCurrentUser();
+    $result = Security::blockIP($ip, $reason, $duration, (int) $adminUser['id']);
+
+    jsonResponse([
+        'success' => $result,
+        'message' => $result ? 'تم حظر العنوان بنجاح' : 'فشل حظر العنوان',
+    ]);
+}
+
+function handleUnblockIP(array $input): void
+{
+    $ip = Security::sanitizeInput($input['ip'] ?? '');
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        jsonResponse(['success' => false, 'message' => 'عنوان IP غير صالح'], 400);
+    }
+
+    $result = Security::unblockIP($ip);
+
+    jsonResponse([
+        'success' => $result,
+        'message' => $result ? 'تم إلغاء حظر العنوان بنجاح' : 'فشل إلغاء الحظر',
+    ]);
+}
+
+function handleSecurityEvents(array $input): void
+{
+    $page = max(1, (int) ($input['page'] ?? 1));
+    $perPage = max(1, min(100, (int) ($input['per_page'] ?? 50)));
+    $severity = Security::sanitizeInput($input['severity'] ?? '');
+
+    $where = ['1=1'];
+    $params = [];
+
+    if (!empty($severity) && in_array($severity, ['INFO', 'WARNING', 'CRITICAL'])) {
+        $where[] = "severity = :severity";
+        $params[':severity'] = $severity;
+    }
+
+    $whereClause = implode(' AND ', $where);
+
+    $total = (int) db()->fetch(
+        "SELECT COUNT(*) as cnt FROM security_events WHERE {$whereClause}",
+        $params
+    )['cnt'];
+
+    $offset = ($page - 1) * $perPage;
+    $params[':offset'] = $offset;
+    $params[':limit'] = $perPage;
+
+    $events = db()->fetchAll(
+        "SELECT * FROM security_events WHERE {$whereClause}
+         ORDER BY created_at DESC
+         LIMIT :limit OFFSET :offset",
+        $params
+    );
+
+    jsonResponse([
+        'success' => true,
+        'data' => $events,
+        'pagination' => [
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'total_pages' => (int) ceil($total / $perPage),
         ],
     ]);
 }

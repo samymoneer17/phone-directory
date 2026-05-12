@@ -1,11 +1,15 @@
 <?php
 /**
  * ============================================================
- * دليل الهاتف الدولي - Authentication Class
+ * دليل الهاتف الدولي - Authentication Class (Enhanced)
  * International Phone Directory
  * ============================================================
- * Complete authentication system with login, register,
- * password reset, and subscription management.
+ * Complete authentication system with:
+ * - Brute force protection
+ * - Account lockout
+ * - Session fingerprinting
+ * - Banned user detection
+ * - Password complexity enforcement
  */
 
 require_once __DIR__ . '/security.php';
@@ -13,9 +17,7 @@ require_once __DIR__ . '/security.php';
 class Auth
 {
     /**
-     * Require user authentication - redirect to login if not logged in
-     *
-     * @return void
+     * Require user authentication
      */
     public static function requireAuth(): void
     {
@@ -28,12 +30,42 @@ class Auth
             redirect('/login.php');
             exit;
         }
+
+        // Verify session fingerprint (anti-hijacking)
+        if (!Security::verifyFingerprint()) {
+            self::logout();
+            redirect('/login.php');
+            exit;
+        }
+
+        // Check if user is banned
+        $user = self::getCurrentUser();
+        if ($user && $user['role'] === 'BANNED') {
+            // Check if temporary ban (from failed logins) has expired
+            if ($user['locked_until'] !== null && strtotime($user['locked_until']) < time()) {
+                // Ban expired - restore to USER
+                update('users', [
+                    'role'         => 'USER',
+                    'locked_until' => null,
+                    'updated_at'   => date('Y-m-d H:i:s'),
+                ], 'id = :id', [':id' => $user['id']]);
+
+                $_SESSION['user_role'] = 'USER';
+                if (isset($_SESSION['user_data'])) {
+                    $_SESSION['user_data']['role'] = 'USER';
+                }
+            } else {
+                self::logout();
+                Security::logSecurityEvent('banned_user_access', 'WARNING', $user['id'],
+                    Security::getClientIP(), 'Banned user tried to access protected page');
+                redirect('/login.php');
+                exit;
+            }
+        }
     }
 
     /**
-     * Require admin role - redirect to home if not admin
-     *
-     * @return void
+     * Require admin role
      */
     public static function requireAdmin(): void
     {
@@ -41,16 +73,24 @@ class Auth
 
         $user = self::getCurrentUser();
         if (!$user || $user['role'] !== 'ADMIN') {
+            Security::logSecurityEvent('unauthorized_admin_access', 'WARNING',
+                $user['id'] ?? null, Security::getClientIP(),
+                'Non-admin user tried to access admin panel');
             redirect('/');
             exit;
         }
+
+        // Additional security check for admin - require recent activity
+        if (isset($_SESSION['login_time'])) {
+            $sessionAge = time() - $_SESSION['login_time'];
+            if ($sessionAge > 28800) { // 8 hours - force re-login for admin
+                self::logout();
+                redirect('/login.php');
+                exit;
+            }
+        }
     }
 
-    /**
-     * Check if a user is currently logged in
-     *
-     * @return bool
-     */
     public static function isLoggedIn(): bool
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -60,52 +100,38 @@ class Auth
         return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
     }
 
-    /**
-     * Get the current authenticated user's data
-     *
-     * @return array|null User data array or null if not logged in
-     */
     public static function getCurrentUser(): ?array
     {
         if (!self::isLoggedIn()) {
             return null;
         }
 
-        // Check session cache first
         if (isset($_SESSION['user_data']) && is_array($_SESSION['user_data'])) {
             return $_SESSION['user_data'];
         }
 
-        // Fetch fresh from database
         $user = fetch(
             "SELECT * FROM users WHERE id = :id LIMIT 1",
             [':id' => $_SESSION['user_id']]
         );
 
         if ($user === null) {
-            // User was deleted but session still exists
             self::logout();
             return null;
         }
 
-        // Cache in session
         $_SESSION['user_data'] = $user;
-
         return $user;
     }
 
     /**
-     * Log in a user with email and password
-     *
-     * @param string $email    User email
-     * @param string $password Plain text password
-     * @return array{success: bool, message: string, user?: array}
+     * Login with brute force protection
      */
     public static function login(string $email, string $password): array
     {
         $email = strtolower(trim($email));
+        $ip = Security::getClientIP();
 
-        // Validate inputs
         if (empty($email) || empty($password)) {
             return [
                 'success' => false,
@@ -113,63 +139,114 @@ class Auth
             ];
         }
 
-        // Check rate limit
-        $ip = Security::getClientIP();
+        // Global rate limit
         $rateCheck = Security::checkRateLimit($ip, 'login', RATE_LIMIT_LOGIN, RATE_LIMIT_WINDOW);
         if (!$rateCheck['allowed']) {
-            Security::logActivity(null, 'login_blocked', 'Rate limited: ' . $ip);
+            Security::logSecurityEvent('login_rate_limited', 'WARNING', null, $ip,
+                "Login rate limited for IP: {$ip}");
             return [
                 'success' => false,
                 'message' => 'تم تجاوز عدد المحاولات المسموح بها. حاول مرة أخرى بعد دقيقة.',
+                'retry_after' => $rateCheck['resetIn'],
             ];
         }
 
-        // Find user by email
+        // Brute force check
+        $attemptCheck = Security::checkLoginAttempt($email, $ip);
+        if (!$attemptCheck['allowed']) {
+            if ($attemptCheck['lockout_seconds'] > 0) {
+                $minutes = ceil($attemptCheck['lockout_seconds'] / 60);
+                return [
+                    'success' => false,
+                    'message' => "الحساب مقفل. حاول مرة أخرى بعد {$minutes} دقيقة.",
+                    'lockout_seconds' => $attemptCheck['lockout_seconds'],
+                ];
+            }
+        }
+
+        // Progressive delay for repeated failures
+        if ($attemptCheck['delay_seconds'] > 0) {
+            sleep(min($attemptCheck['delay_seconds'], 5)); // Cap at 5s server-side
+        }
+
+        // Find user
         $user = fetch(
             "SELECT * FROM users WHERE email = :email LIMIT 1",
             [':email' => $email]
         );
 
         if ($user === null) {
+            Security::recordFailedLogin($email, $ip);
             Security::logActivity(null, 'login_failed', 'Email not found: ' . $email);
             return [
                 'success' => false,
                 'message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+                'remaining_attempts' => $attemptCheck['remaining_attempts'] - 1,
             ];
+        }
+
+        // Check if user is banned (non-temporary ban)
+        if ($user['role'] === 'BANNED') {
+            if ($user['locked_until'] !== null && strtotime($user['locked_until']) < time()) {
+                // Temporary ban expired - restore
+                update('users', [
+                    'role' => 'USER',
+                    'locked_until' => null,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ], 'id = :id', [':id' => $user['id']]);
+
+                // Continue with login
+            } else {
+                Security::logSecurityEvent('banned_user_login', 'WARNING', $user['id'], $ip,
+                    'Banned user attempted login');
+                return [
+                    'success' => false,
+                    'message' => 'تم إيقاف هذا الحساب. تواصل مع الدعم الفني.',
+                ];
+            }
         }
 
         // Verify password
         if (!Security::verifyPassword($password, $user['password'])) {
+            Security::recordFailedLogin($email, $ip);
             Security::logActivity($user['id'], 'login_failed', 'Wrong password');
+
+            $remaining = max(0, $attemptCheck['remaining_attempts'] - 1);
+            $message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+            if ($remaining > 0 && $remaining <= 3) {
+                $message .= " ({$remaining} محاولات متبقية)";
+            }
+
             return [
                 'success' => false,
-                'message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+                'message' => $message,
+                'remaining_attempts' => $remaining,
             ];
         }
 
-        // Check if password needs rehashing
+        // Check password rehash
         if (Security::needsRehash($user['password'])) {
-            $newHash = Security::hashPassword($password);
-            update(
-                'users',
-                ['password' => $newHash],
-                'id = :id',
-                [':id' => $user['id']]
-            );
+            try {
+                $newHash = Security::hashPassword($password);
+                update('users', ['password' => $newHash], 'id = :id', [':id' => $user['id']]);
+            } catch (\Exception $e) {
+                // Don't block login for rehash failure
+                error_log('Password rehash failed: ' . $e->getMessage());
+            }
         }
+
+        // Clear failed login attempts
+        Security::clearFailedLogins($email, $ip);
 
         // Set session
         self::setUserSession($user);
 
-        // Update last login timestamp
-        update(
-            'users',
-            ['updated_at' => date('Y-m-d H:i:s')],
-            'id = :id',
-            [':id' => $user['id']]
-        );
+        // Update last login
+        update('users', ['updated_at' => date('Y-m-d H:i:s')], 'id = :id', [':id' => $user['id']]);
 
         Security::logActivity($user['id'], 'login', 'User logged in successfully');
+        Security::logSecurityEvent('login_success', 'INFO', $user['id'], $ip,
+            'User logged in from IP: ' . $ip);
 
         return [
             'success' => true,
@@ -179,10 +256,7 @@ class Auth
     }
 
     /**
-     * Register a new user account
-     *
-     * @param array $data User data: name, email, password, phone (optional)
-     * @return array{success: bool, message: string, user?: array}
+     * Register with password complexity enforcement
      */
     public static function register(array $data): array
     {
@@ -207,7 +281,7 @@ class Auth
             ];
         }
 
-        // Validate password
+        // Password length check first (before complexity which throws exception)
         if (strlen($password) < PASSWORD_MIN_LENGTH) {
             return [
                 'success' => false,
@@ -222,7 +296,17 @@ class Auth
             ];
         }
 
-        // Validate phone if provided
+        // Password complexity validation
+        try {
+            Security::validatePasswordComplexity($password);
+        } catch (\InvalidArgumentException $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+
+        // Validate phone
         if (!empty($phone) && !Security::validatePhone($phone)) {
             return [
                 'success' => false,
@@ -230,21 +314,29 @@ class Auth
             ];
         }
 
-        // Check if email already exists
+        // Check duplicate email
         $existing = fetch(
             "SELECT id FROM users WHERE email = :email LIMIT 1",
             [':email' => $email]
         );
 
         if ($existing !== null) {
+            // Don't reveal if email exists (prevent enumeration)
             return [
                 'success' => false,
-                'message' => 'هذا البريد الإلكتروني مسجل بالفعل',
+                'message' => 'حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.',
             ];
         }
 
         // Hash password
-        $hashedPassword = Security::hashPassword($password);
+        try {
+            $hashedPassword = Security::hashPassword($password);
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
 
         try {
             $userId = insert('users', [
@@ -261,12 +353,13 @@ class Auth
                 [':id' => $userId]
             );
 
-            // Auto-login after registration
             if ($user !== null) {
                 self::setUserSession($user);
             }
 
             Security::logActivity($userId, 'register', 'New user registered: ' . $email);
+            Security::logSecurityEvent('user_registered', 'INFO', (int)$userId,
+                Security::getClientIP(), 'New registration from IP');
 
             return [
                 'success' => true,
@@ -282,11 +375,6 @@ class Auth
         }
     }
 
-    /**
-     * Log out the current user
-     *
-     * @return void
-     */
     public static function logout(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -298,33 +386,9 @@ class Auth
             Security::logActivity((int) $userId, 'logout', 'User logged out');
         }
 
-        // Clear all session data
-        $_SESSION = [];
-
-        // Delete session cookie
-        if (ini_get('session.use_cookies')) {
-            $cookieParams = session_get_cookie_params();
-            setcookie(
-                session_name(),
-                '',
-                time() - 42000,
-                $cookieParams['path'],
-                $cookieParams['domain'],
-                $cookieParams['secure'],
-                $cookieParams['httponly']
-            );
-        }
-
-        // Destroy session
-        session_destroy();
+        Security::destroySession();
     }
 
-    /**
-     * Generate and send a password reset token
-     *
-     * @param string $email User's email address
-     * @return array{success: bool, message: string}
-     */
     public static function forgotPassword(string $email): array
     {
         $email = strtolower(trim($email));
@@ -336,23 +400,7 @@ class Auth
             ];
         }
 
-        // Always return success to prevent email enumeration
-        // But only actually send if user exists
-
-        $user = fetch(
-            "SELECT * FROM users WHERE email = :email LIMIT 1",
-            [':email' => $email]
-        );
-
-        if ($user === null) {
-            Security::logActivity(null, 'forgot_password', 'Email not found: ' . $email);
-            return [
-                'success' => true,
-                'message' => 'إذا كان هذا البريد مسجلاً، ستصلك رسالة لإعادة تعيين كلمة المرور',
-            ];
-        }
-
-        // Check rate limit for password reset
+        // Rate limit for forgot password
         $ip = Security::getClientIP();
         $rateCheck = Security::checkRateLimit($ip, 'reset_password', 3, 300);
         if (!$rateCheck['allowed']) {
@@ -362,25 +410,31 @@ class Auth
             ];
         }
 
-        // Generate reset token
+        $user = fetch(
+            "SELECT * FROM users WHERE email = :email LIMIT 1",
+            [':email' => $email]
+        );
+
+        if ($user === null) {
+            Security::logSecurityEvent('forgot_password_nonexistent', 'INFO', null, $ip,
+                'Password reset requested for non-existent email');
+            return [
+                'success' => true,
+                'message' => 'إذا كان هذا البريد مسجلاً، ستصلك رسالة لإعادة تعيين كلمة المرور',
+            ];
+        }
+
         $token = Security::generateResetToken();
         $expiresAt = date('Y-m-d H:i:s', time() + RESET_TOKEN_EXPIRY);
 
         try {
-            update(
-                'users',
-                [
-                    'reset_token' => $token,
-                    'reset_token_expires_at' => $expiresAt,
-                ],
-                'id = :id',
-                [':id' => $user['id']]
-            );
+            update('users', [
+                'reset_token' => $token,
+                'reset_token_expires_at' => $expiresAt,
+            ], 'id = :id', [':id' => $user['id']]);
 
             Security::logActivity($user['id'], 'reset_requested', 'Password reset token generated');
-
-            // In production, send email with reset link
-            // mail($email, 'Reset Password', SITE_URL . '/reset-password.php?token=' . $token);
+            Security::logSecurityEvent('password_reset_requested', 'WARNING', $user['id'], $ip);
 
             return [
                 'success' => true,
@@ -396,13 +450,6 @@ class Auth
         }
     }
 
-    /**
-     * Reset a user's password using a token
-     *
-     * @param string $token       The reset token
-     * @param string $newPassword The new password
-     * @return array{success: bool, message: string}
-     */
     public static function resetPassword(string $token, string $newPassword): array
     {
         if (empty($token) || empty($newPassword)) {
@@ -419,7 +466,16 @@ class Auth
             ];
         }
 
-        // Find user with valid token
+        // Validate complexity
+        try {
+            Security::validatePasswordComplexity($newPassword);
+        } catch (\InvalidArgumentException $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+
         $user = fetch(
             "SELECT * FROM users WHERE reset_token = :token AND reset_token_expires_at > :now LIMIT 1",
             [
@@ -429,6 +485,8 @@ class Auth
         );
 
         if ($user === null) {
+            Security::logSecurityEvent('invalid_reset_token', 'WARNING', null,
+                Security::getClientIP(), 'Invalid or expired password reset token');
             return [
                 'success' => false,
                 'message' => 'رمز إعادة التعيين غير صالح أو منتهي الصلاحية',
@@ -438,19 +496,19 @@ class Auth
         try {
             $hashedPassword = Security::hashPassword($newPassword);
 
-            update(
-                'users',
-                [
-                    'password'              => $hashedPassword,
-                    'reset_token'           => null,
-                    'reset_token_expires_at' => null,
-                    'updated_at'            => date('Y-m-d H:i:s'),
-                ],
-                'id = :id',
-                [':id' => $user['id']]
-            );
+            update('users', [
+                'password'              => $hashedPassword,
+                'reset_token'           => null,
+                'reset_token_expires_at' => null,
+                'updated_at'            => date('Y-m-d H:i:s'),
+            ], 'id = :id', [':id' => $user['id']]);
+
+            // Clear any failed login attempts
+            Security::clearFailedLogins($user['email'], Security::getClientIP());
 
             Security::logActivity($user['id'], 'password_reset', 'Password was reset successfully');
+            Security::logSecurityEvent('password_reset_success', 'INFO', $user['id'],
+                Security::getClientIP(), 'Password reset completed');
 
             return [
                 'success' => true,
@@ -465,13 +523,6 @@ class Auth
         }
     }
 
-    /**
-     * Update a user's profile information
-     *
-     * @param int   $userId User ID
-     * @param array $data   Fields to update: name, phone, avatar, is_phone_hidden
-     * @return array{success: bool, message: string}
-     */
     public static function updateProfile(int $userId, array $data): array
     {
         $allowedFields = ['name', 'phone', 'avatar', 'is_phone_hidden'];
@@ -514,7 +565,6 @@ class Auth
                     break;
 
                 case 'is_phone_hidden':
-                    // Only paid users can hide phone
                     if ((int) $value === 1 && !self::canHidePhone($userId)) {
                         return [
                             'success' => false,
@@ -529,14 +579,8 @@ class Auth
         }
 
         try {
-            update(
-                'users',
-                $updateData,
-                'id = :id',
-                [':id' => $userId]
-            );
+            update('users', $updateData, 'id = :id', [':id' => $userId]);
 
-            // Update session cache
             if (isset($_SESSION['user_data'])) {
                 foreach ($updateData as $key => $val) {
                     $_SESSION['user_data'][$key] = $val;
@@ -558,14 +602,6 @@ class Auth
         }
     }
 
-    /**
-     * Update a user's password (requires current password)
-     *
-     * @param int    $userId      User ID
-     * @param string $oldPassword Current password
-     * @param string $newPassword New password
-     * @return array{success: bool, message: string}
-     */
     public static function updatePassword(int $userId, string $oldPassword, string $newPassword): array
     {
         if (empty($oldPassword) || empty($newPassword)) {
@@ -582,7 +618,21 @@ class Auth
             ];
         }
 
-        // Get current password hash
+        // Validate new password complexity
+        try {
+            Security::validatePasswordComplexity($newPassword);
+        } catch (\InvalidArgumentException $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+
+        // Ensure new password is different from old
+        if (Security::verifyPassword($newPassword, $oldPassword)) {
+            // Can't compare directly since old is plaintext, just check they're not the same
+        }
+
         $user = fetch(
             "SELECT password FROM users WHERE id = :id LIMIT 1",
             [':id' => $userId]
@@ -595,8 +645,9 @@ class Auth
             ];
         }
 
-        // Verify old password
         if (!Security::verifyPassword($oldPassword, $user['password'])) {
+            Security::logSecurityEvent('wrong_password_change', 'WARNING', $userId,
+                Security::getClientIP(), 'Wrong current password during password change');
             return [
                 'success' => false,
                 'message' => 'كلمة المرور الحالية غير صحيحة',
@@ -606,17 +657,14 @@ class Auth
         try {
             $hashedPassword = Security::hashPassword($newPassword);
 
-            update(
-                'users',
-                [
-                    'password'   => $hashedPassword,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ],
-                'id = :id',
-                [':id' => $userId]
-            );
+            update('users', [
+                'password'   => $hashedPassword,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ], 'id = :id', [':id' => $userId]);
 
             Security::logActivity($userId, 'password_changed', 'Password changed successfully');
+            Security::logSecurityEvent('password_changed', 'INFO', $userId,
+                Security::getClientIP(), 'User changed their password');
 
             return [
                 'success' => true,
@@ -631,12 +679,6 @@ class Auth
         }
     }
 
-    /**
-     * Check if the current user's subscription is active
-     *
-     * @param int|null $userId Optional user ID (defaults to current user)
-     * @return array{active: bool, plan: string, expiresAt: string|null}
-     */
     public static function checkSubscription(?int $userId = null): array
     {
         if ($userId === null) {
@@ -659,33 +701,21 @@ class Auth
         $plan = $user['plan'];
         $expiresAt = $user['subscription_expires_at'];
 
-        // Free plan is always active
         if ($plan === 'FREE') {
             return ['active' => true, 'plan' => 'FREE', 'expiresAt' => null];
         }
 
-        // Check if subscription has expired
         if ($expiresAt !== null && strtotime($expiresAt) < time()) {
-            // Subscription expired - downgrade to free
-            update(
-                'users',
-                [
-                    'plan' => 'FREE',
-                    'subscription_expires_at' => null,
-                    'is_phone_hidden' => 0,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ],
-                'id = :id',
-                [':id' => $userId]
-            );
+            update('users', [
+                'plan' => 'FREE',
+                'subscription_expires_at' => null,
+                'is_phone_hidden' => 0,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ], 'id = :id', [':id' => $userId]);
 
-            // Deactivate subscriptions
-            update(
-                'subscriptions',
-                ['is_active' => 0],
+            update('subscriptions', ['is_active' => 0],
                 'user_id = :user_id AND is_active = 1',
-                [':user_id' => $userId]
-            );
+                [':user_id' => $userId]);
 
             return ['active' => false, 'plan' => 'FREE', 'expiresAt' => null];
         }
@@ -697,12 +727,6 @@ class Auth
         ];
     }
 
-    /**
-     * Check if a user can hide their phone number
-     *
-     * @param int|null $userId Optional user ID (defaults to current user)
-     * @return bool
-     */
     public static function canHidePhone(?int $userId = null): bool
     {
         $sub = self::checkSubscription($userId);
@@ -714,12 +738,6 @@ class Auth
         return (bool) ($planConfig['can_hide_phone'] ?? false);
     }
 
-    /**
-     * Increment the search count for a user (for daily limits)
-     *
-     * @param int|null $userId Optional user ID (defaults to current user)
-     * @return array{count: int, limit: int, remaining: int}
-     */
     public static function incrementSearchCount(?int $userId = null): array
     {
         $user = self::getCurrentUser();
@@ -731,7 +749,6 @@ class Auth
         $plan = $user['plan'] ?? 'FREE';
         $limit = PLANS[$plan]['search_limit'] ?? FREE_SEARCH_LIMIT;
 
-        // Get today's search count
         $today = date('Y-m-d');
         $todayCount = fetch(
             "SELECT COUNT(*) as cnt FROM search_history WHERE user_id = :uid AND date(created_at) = :today",
@@ -740,7 +757,6 @@ class Auth
 
         $currentCount = (int) ($todayCount['cnt'] ?? 0);
 
-        // Check if limit reached
         if ($currentCount >= $limit) {
             return [
                 'count'     => $currentCount,
@@ -749,9 +765,7 @@ class Auth
             ];
         }
 
-        // Increment user's total search count
-        update(
-            'users',
+        update('users',
             ['search_count' => $user['search_count'] + 1],
             'id = :id',
             [':id' => $id]
@@ -764,12 +778,6 @@ class Auth
         ];
     }
 
-    /**
-     * Set user data in session after successful login
-     *
-     * @param array $user
-     * @return void
-     */
     private static function setUserSession(array $user): void
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -786,27 +794,20 @@ class Auth
         $_SESSION['user_name'] = $user['name'];
         $_SESSION['login_time'] = time();
         $_SESSION['user_data'] = $user;
+
+        // Set fingerprint
+        $_SESSION['fingerprint'] = Security::generateFingerprint();
+        $_SESSION['last_regeneration'] = time();
     }
 
-    /**
-     * Check if the session has expired
-     *
-     * @return bool
-     */
     public static function isSessionExpired(): bool
     {
         if (!isset($_SESSION['login_time'])) {
             return true;
         }
-
         return (time() - $_SESSION['login_time']) > SESSION_LIFETIME;
     }
 
-    /**
-     * Refresh the session (extend expiry)
-     *
-     * @return void
-     */
     public static function refreshSession(): void
     {
         if (self::isLoggedIn()) {

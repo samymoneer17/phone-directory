@@ -62,6 +62,15 @@ define('PASSWORD_MIN_LENGTH', 8);
 define('PASSWORD_MAX_LENGTH', 128);
 
 // ============================================================
+// Advanced Security Settings
+// ============================================================
+define('ADMIN_SESSION_TIMEOUT', 28800);   // 8 hours for admin sessions
+define('AUTO_BLOCK_VIOLATIONS', 20);      // Auto-block IP after 20 rate limit violations
+define('IP_BLOCK_DEFAULT_DURATION', 3600); // 1 hour default IP block
+define('MAX_UPLOAD_SIZE', 5242880);       // 5MB max upload
+define('HONEYPOT_FIELD_NAME', 'website'); // Hidden honeypot field name
+
+// ============================================================
 // Rate Limiting
 // ============================================================
 define('RATE_LIMIT_SEARCH', 30);         // 30 searches per minute

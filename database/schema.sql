@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     phone TEXT,
     avatar TEXT DEFAULT NULL,
-    role TEXT DEFAULT 'USER' CHECK(role IN ('USER','ADMIN')),
+    role TEXT DEFAULT 'USER' CHECK(role IN ('USER','ADMIN','BANNED')),
+    login_attempts INTEGER DEFAULT 0,
+    locked_until TEXT DEFAULT NULL,
     plan TEXT DEFAULT 'FREE' CHECK(plan IN ('FREE','PRO','PREMIUM')),
     subscription_expires_at TEXT DEFAULT NULL,
     is_phone_hidden INTEGER DEFAULT 0,
@@ -83,6 +85,44 @@ CREATE TABLE IF NOT EXISTS rate_limits (
     UNIQUE(ip_address, endpoint)
 );
 
+-- Login attempts tracking table
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    ip_address TEXT NOT NULL,
+    attempts_count INTEGER DEFAULT 1,
+    last_attempt_at TEXT DEFAULT (datetime('now')),
+    is_locked INTEGER DEFAULT 0,
+    locked_until TEXT DEFAULT NULL,
+    UNIQUE(email, ip_address)
+);
+
+-- Security events table (detailed audit trail)
+CREATE TABLE IF NOT EXISTS security_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    severity TEXT DEFAULT 'INFO' CHECK(severity IN ('INFO','WARNING','CRITICAL')),
+    user_id INTEGER,
+    ip_address TEXT,
+    user_agent TEXT,
+    description TEXT,
+    metadata TEXT DEFAULT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Blocked IPs table
+CREATE TABLE IF NOT EXISTS blocked_ips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT UNIQUE NOT NULL,
+    reason TEXT,
+    blocked_by INTEGER,
+    blocked_at TEXT DEFAULT (datetime('now')),
+    expires_at TEXT DEFAULT NULL,
+    is_permanent INTEGER DEFAULT 0,
+    FOREIGN KEY (blocked_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_plan ON users(plan);
@@ -98,3 +138,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_created ON activity_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_rate_limits ON rate_limits(ip_address, endpoint);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(is_active);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address);
+CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_blocked_ips ON blocked_ips(ip_address);

@@ -1,0 +1,6 @@
+# Deny all access to database files
+Options -Indexes
+<FilesMatch ".*">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
