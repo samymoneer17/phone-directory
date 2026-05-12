@@ -5,7 +5,7 @@
  * International Phone Directory
  * ============================================================
  * Complete authentication system with login, register,
- * Google OAuth, password reset, and subscription management.
+ * password reset, and subscription management.
  */
 
 require_once __DIR__ . '/security.php';
@@ -135,14 +135,6 @@ class Auth
             return [
                 'success' => false,
                 'message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
-            ];
-        }
-
-        // Check if user has a password (Google-only accounts)
-        if (empty($user['password'])) {
-            return [
-                'success' => false,
-                'message' => 'هذا الحساب مسجل بواسطة Google. يرجى تسجيل الدخول باستخدام Google.',
             ];
         }
 
@@ -286,142 +278,6 @@ class Auth
             return [
                 'success' => false,
                 'message' => 'حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.',
-            ];
-        }
-    }
-
-    /**
-     * Login or register a user via Google OAuth
-     *
-     * @param array $googleData Google user data: id, email, name, picture, verified_email
-     * @return array{success: bool, message: string, user?: array, isNew: bool}
-     */
-    public static function loginWithGoogle(array $googleData): array
-    {
-        $googleId = $googleData['id'] ?? '';
-        $email = strtolower(trim($googleData['email'] ?? ''));
-        $name = Security::sanitizeInput($googleData['name'] ?? '');
-        $picture = $googleData['picture'] ?? '';
-        $verifiedEmail = (bool) ($googleData['verified_email'] ?? false);
-
-        if (empty($googleId) || empty($email)) {
-            return [
-                'success' => false,
-                'message' => 'بيانات Google غير مكتملة',
-            ];
-        }
-
-        if (!$verifiedEmail) {
-            return [
-                'success' => false,
-                'message' => 'يجب التحقق من البريد الإلكتروني في Google أولاً',
-            ];
-        }
-
-        try {
-            // Check for existing user with this Google ID
-            $user = fetch(
-                "SELECT * FROM users WHERE google_id = :google_id LIMIT 1",
-                [':google_id' => $googleId]
-            );
-
-            if ($user !== null) {
-                // Existing Google user - update name and avatar
-                update(
-                    'users',
-                    [
-                        'name'   => $name,
-                        'avatar' => $picture ?: null,
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ],
-                    'id = :id',
-                    [':id' => $user['id']]
-                );
-
-                // Refresh user data
-                $user = fetch(
-                    "SELECT * FROM users WHERE id = :id LIMIT 1",
-                    [':id' => $user['id']]
-                );
-
-                self::setUserSession($user);
-                Security::logActivity($user['id'], 'google_login', 'Google login');
-
-                return [
-                    'success' => true,
-                    'message' => 'تم تسجيل الدخول بنجاح',
-                    'user' => $user,
-                    'isNew' => false,
-                ];
-            }
-
-            // Check if user exists with this email (link accounts)
-            $existingEmail = fetch(
-                "SELECT * FROM users WHERE email = :email LIMIT 1",
-                [':email' => $email]
-            );
-
-            if ($existingEmail !== null) {
-                // Link Google account to existing user
-                update(
-                    'users',
-                    [
-                        'google_id'   => $googleId,
-                        'avatar'      => $picture ?: $existingEmail['avatar'],
-                        'updated_at'  => date('Y-m-d H:i:s'),
-                    ],
-                    'id = :id',
-                    [':id' => $existingEmail['id']]
-                );
-
-                $user = fetch(
-                    "SELECT * FROM users WHERE id = :id LIMIT 1",
-                    [':id' => $existingEmail['id']]
-                );
-
-                self::setUserSession($user);
-                Security::logActivity($user['id'], 'google_linked', 'Google account linked');
-
-                return [
-                    'success' => true,
-                    'message' => 'تم ربط حساب Google بنجاح',
-                    'user' => $user,
-                    'isNew' => false,
-                ];
-            }
-
-            // Create new user
-            $userId = insert('users', [
-                'name'      => $name,
-                'email'     => $email,
-                'google_id' => $googleId,
-                'avatar'    => $picture ?: null,
-                'plan'      => 'FREE',
-                'role'      => 'USER',
-            ]);
-
-            $user = fetch(
-                "SELECT * FROM users WHERE id = :id LIMIT 1",
-                [':id' => $userId]
-            );
-
-            if ($user !== null) {
-                self::setUserSession($user);
-            }
-
-            Security::logActivity($userId, 'google_register', 'New Google registration: ' . $email);
-
-            return [
-                'success' => true,
-                'message' => 'تم إنشاء الحساب وتسجيل الدخول بنجاح',
-                'user' => $user,
-                'isNew' => true,
-            ];
-        } catch (\Exception $e) {
-            error_log('Google login failed: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'حدث خطأ أثناء تسجيل الدخول بحساب Google',
             ];
         }
     }
@@ -740,13 +596,6 @@ class Auth
         }
 
         // Verify old password
-        if (empty($user['password'])) {
-            return [
-                'success' => false,
-                'message' => 'لا يمكن تغيير كلمة المرور لحساب Google. يرجى تعيين كلمة مرور أولاً.',
-            ];
-        }
-
         if (!Security::verifyPassword($oldPassword, $user['password'])) {
             return [
                 'success' => false,

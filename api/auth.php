@@ -5,7 +5,7 @@
  * International Phone Directory - Auth API Endpoints
  * ============================================================
  * Handles: login, register, forgot-password, reset-password,
- *          logout, google-callback
+ *          logout
  */
 
 require_once __DIR__ . '/../includes/config.php';
@@ -24,8 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Get action
 $action = post('action');
 
-// CSRF check for all actions except login and google-callback (to allow initial load)
-if ($action !== 'login' && $action !== 'google-callback') {
+// CSRF check for all actions except login (to allow initial load)
+if ($action !== 'login') {
     if (!isset($_POST['csrf_token']) || !Security::verifyCSRFToken($_POST['csrf_token'])) {
         jsonResponse(['success' => false, 'error' => 'رمز التحقق غير صالح'], 403);
     }
@@ -209,39 +209,6 @@ try {
                 'message'  => 'تم تسجيل الخروج',
                 'redirect' => 'index.php',
             ]);
-            break;
-
-        // =====================================================
-        // تسجيل الدخول بحساب Google
-        // =====================================================
-        case 'google-callback':
-            // Auth::loginWithGoogle() expects: {id, email, name, picture, verified_email}
-            $googleData = [
-                'id'            => Security::sanitizeInput(post('google_id') ?? post('id')),
-                'email'         => Security::sanitizeInput(post('email')),
-                'name'          => Security::sanitizeInput(post('name')),
-                'picture'       => Security::sanitizeInput(post('avatar') ?? post('picture')),
-                'verified_email' => post('verified_email') === 'true' || post('verified_email') === '1',
-            ];
-
-            if (empty($googleData['id']) || empty($googleData['email'])) {
-                jsonResponse(['success' => false, 'error' => 'بيانات Google غير مكتملة']);
-            }
-
-            // Auth::loginWithGoogle() signature: loginWithGoogle(array $googleData)
-            // Returns: {success, message, user?, isNew}
-            $result = Auth::loginWithGoogle($googleData);
-
-            if ($result['success']) {
-                jsonResponse([
-                    'success' => true,
-                    'message' => $result['isNew'] ? 'تم إنشاء الحساب وتسجيل الدخول بحساب Google' : 'تم تسجيل الدخول بحساب Google',
-                    'redirect' => 'dashboard.php',
-                    'is_new'   => $result['isNew'] ?? false,
-                ]);
-            } else {
-                jsonResponse(['success' => false, 'error' => $result['message']]);
-            }
             break;
 
         // =====================================================
