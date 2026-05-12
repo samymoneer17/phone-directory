@@ -384,25 +384,32 @@
         }
 
         // Populate user data
-        var name = user.name || user.username || 'المستخدم';
+        var name = user.name || user.username || '\u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645';
         document.getElementById('userName').textContent = name;
-        document.title = 'لوحة التحكم - ' + name;
+        document.title = '\u0644\u0648\u062d\u0629 \u0627\u0644\u062a\u062d\u0643\u0645 - ' + name;
 
         if (user.plan) {
-            document.getElementById('planName').textContent = user.plan === 'pro' ? 'احترافي' : user.plan === 'premium' ? 'مميز' : 'مجاني';
+            var planLabels = {FREE: '\u0645\u062c\u0627\u0646\u064a', PRO: '\u0627\u062d\u062a\u0631\u0627\u0641\u064a', PREMIUM: '\u0645\u0645\u064a\u0632'};
+            var planKey = (user.plan || 'FREE').toUpperCase();
+            document.getElementById('planName').textContent = planLabels[planKey] || '\u0645\u062c\u0627\u0646\u064a';
         }
 
         if (user.created_at) {
-            document.getElementById('memberSince').textContent = new Date(user.created_at).toLocaleDateString('ar-EG', {year:'numeric', month:'short'});
+            try {
+                var d = new Date(user.created_at);
+                document.getElementById('memberSince').textContent = d.toLocaleDateString('ar-EG', {year:'numeric', month:'short'});
+            } catch(e) {
+                document.getElementById('memberSince').textContent = user.created_at;
+            }
+        } else {
+            document.getElementById('memberSince').textContent = '\u0627\u0644\u064a\u0648\u0645';
         }
 
-        if (user.searches_today !== undefined) {
-            document.getElementById('searchesToday').textContent = user.searches_today;
-        }
-
-        if (user.total_searches !== undefined) {
-            document.getElementById('totalSearches').textContent = user.total_searches;
-        }
+        // Search counts from localStorage (updated after each search)
+        var searchesToday = parseInt(localStorage.getItem('searches_today') || '0');
+        var totalSearches = parseInt(user.search_count || '0') + searchesToday;
+        document.getElementById('searchesToday').textContent = searchesToday;
+        document.getElementById('totalSearches').textContent = totalSearches;
 
         // Load recent searches from localStorage
         var recentSearches = JSON.parse(localStorage.getItem('recent_searches') || '[]');

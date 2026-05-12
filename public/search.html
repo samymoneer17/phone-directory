@@ -411,7 +411,8 @@
                 query: query,
                 type: currentType,
                 page: currentPage,
-                csrf_token: DalilApp.getCSRFTokenSync()
+                csrf_token: DalilApp.getCSRFTokenSync(),
+                user_id: (DalilApp.getUser() || {}).id || null
             })
         })
         .then(function(r) { return r.json(); })
@@ -421,16 +422,37 @@
 
             if (data.success && data.results && data.results.length > 0) {
                 document.getElementById('resultsArea').style.display = 'block';
-                document.getElementById('resultsTitle').textContent = 'نتائج البحث عن "' + query + '"';
-                document.getElementById('resultsCount').textContent = data.total + ' نتيجة';
+                document.getElementById('resultsTitle').textContent = '\u0646\u062a\u0627\u0626\u062c \u0627\u0644\u0628\u062d\u062b \u0639\u0646 "' + query + '"';
+                document.getElementById('resultsCount').textContent = data.total + ' \u0646\u062a\u064a\u062c\u0629';
                 renderResults(data.results);
 
-                if (data.pages > 1) {
-                    renderPagination(data.page, data.pages);
+                // Update search counter in localStorage
+                if (data.count) {
+                    localStorage.setItem('searches_today', String(data.count));
+                    // Update user in localStorage with new search count
+                    var u = DalilApp.getUser();
+                    if (u) {
+                        u.search_count = data.limit - data.remaining;
+                        localStorage.setItem('user', JSON.stringify(u));
+                    }
+                }
+
+                // Save to recent searches
+                var recent = JSON.parse(localStorage.getItem('recent_searches') || '[]');
+                recent.unshift({query: query, type: currentType, date: new Date().toLocaleDateString('ar-EG')});
+                if (recent.length > 20) recent = recent.slice(0, 20);
+                localStorage.setItem('recent_searches', JSON.stringify(recent));
+
+                if (data.total_pages && data.total_pages > 1) {
+                    renderPagination(data.page, data.total_pages);
                 } else {
                     document.getElementById('pagination').style.display = 'none';
                 }
             } else {
+                if (data.error === 'auth_required') {
+                    document.getElementById('emptyState').innerHTML = '<div style="text-align:center;padding:3rem 1rem"><i data-lucide="log-in" style="width:48px;height:48px;display:block;margin:0 auto 1rem;color:var(--accent)"></i><h3 style="margin-bottom:.5rem">يجب تسجيل الدخول</h3><p style="color:var(--text-muted);margin-bottom:1.5rem">سجّل دخولك لبدء البحث</p><a href="login.html" class="btn btn-primary">تسجيل الدخول</a></div>';
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
                 document.getElementById('emptyState').style.display = 'block';
             }
         })

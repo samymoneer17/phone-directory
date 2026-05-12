@@ -111,6 +111,9 @@ try {
                         'name'  => $result['user']['name'],
                         'email' => $result['user']['email'],
                         'plan'  => $result['user']['plan'],
+                        'phone' => $result['user']['phone'] ?? '',
+                        'created_at' => $result['user']['created_at'] ?? '',
+                        'search_count' => (int) ($result['user']['search_count'] ?? 0),
                     ],
                 ]);
             } else {
@@ -165,6 +168,9 @@ try {
                         'name'  => $result['user']['name'] ?? $data['name'],
                         'email' => $result['user']['email'] ?? $data['email'],
                         'plan'  => $result['user']['plan'] ?? 'FREE',
+                        'phone' => $result['user']['phone'] ?? '',
+                        'created_at' => $result['user']['created_at'] ?? '',
+                        'search_count' => (int) ($result['user']['search_count'] ?? 0),
                     ],
                 ]);
             } else {

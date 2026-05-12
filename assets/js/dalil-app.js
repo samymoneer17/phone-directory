@@ -139,6 +139,7 @@ const DalilApp = {
     },
 
     // API POST with CSRF - auto-retries on CSRF failure
+    // Automatically includes user_id from localStorage for serverless auth
     async post(endpoint, data, retries) {
         data = data || {};
         retries = retries !== undefined ? retries : 1;
@@ -146,6 +147,12 @@ const DalilApp = {
         // Get fresh CSRF token before each request
         var token = await this.getCSRFToken();
         data.csrf_token = token;
+
+        // Auto-include user_id from localStorage (Vercel serverless auth)
+        var user = this.getUser();
+        if (user && user.id && !data.user_id) {
+            data.user_id = user.id;
+        }
 
         try {
             var res = await fetch(this.apiBase + '/' + endpoint, {

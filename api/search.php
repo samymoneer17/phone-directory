@@ -84,12 +84,18 @@ switch ($action) {
         break;
 
     case 'search':
-        // Auth check
-        if (!Auth::isLoggedIn()) {
+        // Auth check — on Vercel serverless, PHP sessions don't persist
+        // between function invocations, so we accept user_id from the client
+        $userId = (int) ($data['user_id'] ?? 0);
+        if ($userId <= 0) {
             jsonResponse(['success' => false, 'error' => 'auth_required', 'message' => 'يجب تسجيل الدخول أولاً'], 401);
         }
 
-        $user = Auth::getCurrentUser();
+        // Verify user exists in database
+        $user = fetch("SELECT id, name, email, plan, search_count, created_at FROM users WHERE id = :id", [':id' => $userId]);
+        if ($user === null) {
+            jsonResponse(['success' => false, 'error' => 'auth_required', 'message' => 'حساب المستخدم غير موجود'], 401);
+        }
         $query = Security::sanitizeInput($data['query'] ?? '');
         $type = ($data['type'] ?? 'NUMBER') === 'NAME' ? 'NAME' : 'NUMBER';
         $page = max(1, (int) ($data['page'] ?? 1));
