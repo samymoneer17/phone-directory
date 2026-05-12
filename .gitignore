@@ -2,8 +2,9 @@
 database/*.db
 database/*.sqlite
 
-# Config (contains sensitive data)
-includes/config.php
+# Build output
+dist/
+node_modules/
 
 # System files
 .DS_Store
@@ -24,3 +25,7 @@ logs/
 # Temp
 tmp/
 temp/
+
+# Test files
+test-all.php
+test-all.py
