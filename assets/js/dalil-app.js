@@ -42,9 +42,13 @@ const DalilApp = {
             this.updateUI(cachedUser);
         }
 
-        // Step 2: Verify with server in background (best-effort)
+        // Step 2: Verify with server — send user_id so serverless can check DB
         try {
-            var res = await fetch(this.apiBase + '/check-auth.php', {
+            var uid = cachedUser ? cachedUser.id : null;
+            var fetchUrl = this.apiBase + '/check-auth.php';
+            if (uid) fetchUrl += '?user_id=' + encodeURIComponent(uid);
+
+            var res = await fetch(fetchUrl, {
                 credentials: 'same-origin',
             });
             var data = await res.json();
@@ -60,7 +64,7 @@ const DalilApp = {
             // the session was lost between containers, NOT that the user
             // actually logged out. Trust localStorage unless explicitly logged out.
             if (cachedUser) {
-                // Keep the cached user, but refresh from server next time
+                // Keep the cached user
                 return cachedUser;
             }
 
