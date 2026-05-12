@@ -614,54 +614,8 @@ class ForgotPasswordForm {
 }
 
 // ============================================
-// GOOGLE OAUTH HELPER
+// OAUTH (تم إزالة Google OAuth)
 // ============================================
-
-class GoogleAuth {
-    /**
-     * Redirect to Google OAuth
-     * @param {string} endpoint - OAuth endpoint URL
-     */
-    static login(endpoint = '/auth/google') {
-        window.location.href = endpoint;
-    }
-
-    /**
-     * Handle OAuth callback
-     * @param {string} token - Auth token from callback
-     * @param {string} redirectUrl - URL to redirect after login
-     */
-    static handleCallback(token, redirectUrl = '/dashboard') {
-        if (!token) {
-            App.toast({
-                type: 'error',
-                title: 'فشل تسجيل الدخول',
-                message: 'لم يتم استلام بيانات المصادقة',
-                duration: 5000
-            });
-            return;
-        }
-
-        // Show loading
-        App.toast({
-            type: 'info',
-            title: 'جاري تسجيل الدخول',
-            message: 'يرجى الانتظار...',
-            duration: 3000
-        });
-
-        // Store token and redirect
-        try {
-            localStorage.setItem('auth_token', token);
-        } catch (e) {
-            // Silently fail
-        }
-
-        setTimeout(() => {
-            window.location.href = redirectUrl;
-        }, 500);
-    }
-}
 
 // ============================================
 // LOGOUT HELPER
@@ -726,15 +680,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.forgotPasswordForm = new ForgotPasswordForm();
     }
 
-    // Initialize Google auth buttons
-    document.querySelectorAll('[data-google-auth]').forEach((btn) => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const endpoint = btn.getAttribute('data-google-auth') || '/auth/google';
-            GoogleAuth.login(endpoint);
-        });
-    });
-
     // Initialize logout buttons
     document.querySelectorAll('[data-logout]').forEach((btn) => {
         btn.addEventListener('click', (e) => {
@@ -752,7 +697,6 @@ if (typeof module !== 'undefined' && module.exports) {
         LoginForm,
         RegisterForm,
         ForgotPasswordForm,
-        GoogleAuth,
         LogoutHandler
     };
 }

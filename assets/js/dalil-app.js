@@ -1,5 +1,5 @@
 /**
- * dalil-app.js - Shared JS module for Vercel static pages
+ * dalil-app.js - Shared JS module for phone directory
  * Handles: auth state, CSRF tokens, API calls, user menu
  */
 

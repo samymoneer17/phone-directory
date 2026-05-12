@@ -249,7 +249,7 @@ $csrfToken = Security::getCSRFToken();
         function actionClass(action){
             if(!action)return'default';
             if(action.includes('login')||action.includes('logout'))return'login';
-            if(action.includes('register')||action.includes('google'))return'register';
+            if(action.includes('register'))return'register';
             if(action.includes('payment'))return'payment';
             if(action.includes('search'))return'search';
             if(action.includes('error')||action.includes('fail')||action.includes('blocked'))return'error';
@@ -260,7 +260,6 @@ $csrfToken = Security::getCSRFToken();
         function actionLabel(action){
             const labels={
                 'login':'تسجيل دخول','logout':'تسجيل خروج','register':'تسجيل جديد',
-                'google_login':'دخول Google','google_register':'تسجيل Google','google_linked':'ربط Google',
                 'login_failed':'فشل الدخول','login_blocked':'دخول محظور',
                 'profile_updated':'تحديث الملف','password_changed':'تغيير كلمة المرور',
                 'password_reset':'إعادة تعيين كلمة المرور','reset_requested':'طلب إعادة تعيين',

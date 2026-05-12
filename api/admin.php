@@ -464,7 +464,6 @@ function handleUsersDetail(array $input): void
                 'subscription_expires_at' => $user['subscription_expires_at'],
                 'is_phone_hidden' => (int) $user['is_phone_hidden'],
                 'search_count' => (int) $user['search_count'],
-                'google_id' => $user['google_id'],
                 'created_at' => $user['created_at'],
                 'updated_at' => $user['updated_at'],
             ],

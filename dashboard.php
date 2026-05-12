@@ -217,7 +217,7 @@ require_once __DIR__ . '/includes/header.php';
                     <?php if (!empty($activities)): ?>
                     <?php
                     $activityColors = [
-                        'login' => 'green', 'register' => 'blue', 'google_login' => 'purple',
+                        'login' => 'green', 'register' => 'blue',
                         'logout' => 'red', 'search' => 'blue', 'payment_success' => 'green',
                         'profile_updated' => 'blue', 'password_changed' => 'yellow',
                         'login_failed' => 'red',
@@ -225,7 +225,6 @@ require_once __DIR__ . '/includes/header.php';
                     $activityLabels = [
                         'login' => 'تسجيل دخول',
                         'register' => 'تسجيل حساب جديد',
-                        'google_login' => 'تسجيل بحساب Google',
                         'logout' => 'تسجيل خروج',
                         'search' => 'بحث جديد',
                         'payment_success' => 'عملية دفع ناجحة',

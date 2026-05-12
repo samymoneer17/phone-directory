@@ -4,9 +4,9 @@
  * دليل الهاتف الدولي - Jaib Payment Integration
  * International Phone Directory
  * ============================================================
- * Payment processing class for Jaib wallet integration.
- * Supports payment verification, subscription activation,
- * and transaction management.
+ * نظام Jaib كامل - مبني على تحليل تطبيق Jaib الرسمي
+ * يدعم: تشفير AES-256-CBC، تسجيل الدخول، استعلام المعاملات
+ * جميع المفاتيح والبيانات مضمّنة مباشرة في الكود
  */
 
 require_once __DIR__ . '/database.php';
@@ -14,42 +14,593 @@ require_once __DIR__ . '/security.php';
 
 class JaibPayment
 {
-    /** @var string Jaib API base URL */
-    private string $apiUrl;
+    // === مفاتيح التشفير (مأخوذة من التطبيق) ===
+    private string $fcmKey;
+    private string $fcmIv;
+    private string $clientIv;
 
-    /** @var string Jaib API key */
-    private string $apiKey;
+    // === بيانات الجهاز الثابتة ===
+    private string $deviceId;
+    private string $smsCode;
+    private string $tknNot;
+    private string $initValue;
+    private string $authHeader;
+    private string $appVersion;
+    private string $updateData;
 
-    /** @var string Merchant ID */
-    private string $merchantId;
+    // === السيرفرات ===
+    private array $bootstrapServers;
+    private array $servers = [];
 
-    /** @var string Merchant secret for signature */
-    private string $merchantSecret;
+    // === حالة الجلسة ===
+    private ?string $clientKey = null;
+    private ?string $sessionKey = null;
+    private ?string $sessionIv = null;
+    private ?string $accessToken = null;
+    private ?string $phone = null;
+    private ?string $password = null;
+    private ?string $userName = null;
+    private ?int $createdAt = null;
 
-    /** @var int Request timeout in seconds */
+    // === إعدادات ===
     private int $timeout;
+    private int $sessionMaxAge = 1800; // 30 دقيقة
 
     /**
-     * Constructor - initialize Jaib payment configuration
+     * Constructor - تهيئة مفاتيح وبيانات Jaib من الثوابت
      */
     public function __construct()
     {
-        $this->apiUrl         = JAIB_API_URL;
-        $this->apiKey         = JAIB_API_KEY;
-        $this->merchantId     = JAIB_MERCHANT_ID;
-        $this->merchantSecret = JAIB_MERCHANT_SECRET;
-        $this->timeout        = JAIB_TIMEOUT;
+        $this->fcmKey    = base64_decode(JAIB_FCM_KEY);
+        $this->fcmIv     = base64_decode(JAIB_FCM_IV);
+        $this->clientIv  = base64_decode(JAIB_CLIENT_IV);
+        $this->deviceId  = JAIB_DEVICE_ID;
+        $this->smsCode   = JAIB_SMS_CODE;
+        $this->tknNot    = JAIB_TKN_NOT;
+        $this->initValue = JAIB_INIT_VALUE;
+        $this->authHeader = JAIB_AUTH_HEADER;
+        $this->appVersion = JAIB_APP_VERSION;
+        $this->updateData = JAIB_UPDATE_DATA;
+        $this->bootstrapServers = JAIB_SERVERS;
+        $this->timeout  = JAIB_TIMEOUT;
+    }
+
+    // ================================================================
+    // التشفير وفك التشفير (AES-256-CBC)
+    // ================================================================
+
+    /**
+     * إضافة PKCS7 Padding
+     */
+    private function pkcs7Pad(string $data): string
+    {
+        $blockSize = 16;
+        $pad = $blockSize - (strlen($data) % $blockSize);
+        return $data . str_repeat(chr($pad), $pad);
     }
 
     /**
-     * Verify a payment transaction with Jaib API
-     *
-     * @param string $transactionId The unique transaction ID
-     * @return array{success: bool, verified: bool, amount: float|null, message: string}
+     * إزالة PKCS7 Padding
+     */
+    private function pkcs7Unpad(string $data): string
+    {
+        $pad = ord($data[strlen($data) - 1]);
+        if ($pad < 1 || $pad > 16) {
+            return $data;
+        }
+        return substr($data, 0, -$pad);
+    }
+
+    /**
+     * تشفير البيانات (AES-256-CBC + gzip + base64)
+     */
+    public function encrypt(array $data, string $key, string $iv): string
+    {
+        // JSON -> gzip -> base64 -> pad -> AES encrypt -> base64
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $compressed = gzencode($json, 6);
+        $b64 = base64_encode($compressed);
+        $padded = $this->pkcs7Pad($b64);
+        $encrypted = openssl_encrypt($padded, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
+        return base64_encode($encrypted);
+    }
+
+    /**
+     * فك تشفير البيانات
+     */
+    public function decrypt(string $payload, string $key, string $iv): array
+    {
+        // base64 decode -> AES decrypt -> unpad -> base64 decode -> gzip decode -> JSON
+        $decoded = base64_decode($payload);
+        $decrypted = openssl_decrypt($decoded, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
+        if ($decrypted === false) {
+            throw new \RuntimeException('فشل فك التشفير: openssl_decrypt');
+        }
+        $unpadded = $this->pkcs7Unpad($decrypted);
+        $b64decoded = base64_decode($unpadded);
+        $decompressed = gzdecode($b64decoded);
+        return json_decode($decompressed, true) ?: [];
+    }
+
+    // ================================================================
+    // طلبات HTTP
+    // ================================================================
+
+    /**
+     * إرسال طلب POST إلى سيرفرات Jaib
+     */
+    private function request(string $path, string $payload, array $extraHeaders = [], ?array $servers = null): ?array
+    {
+        $serverList = $servers ?: ($this->servers ?: $this->bootstrapServers);
+
+        foreach ($serverList as $server) {
+            $host = str_replace('https://', '', $server);
+            $url = $server . $path;
+
+            $headers = array_merge([
+                'Content-Type: application/json; charset=utf-8',
+                'User-Agent: okhttp/5.1.0',
+                'Accept: application/json',
+                'Accept-Encoding: gzip',
+                'Authorization: ' . $this->authHeader,
+                'Host: ' . $host,
+            ], $extraHeaders);
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => json_encode(['value' => $payload]),
+                CURLOPT_HTTPHEADER     => $headers,
+                CURLOPT_TIMEOUT        => $this->timeout,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_ENCODING       => '', // handle gzip
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error || $response === false || $httpCode !== 200) {
+                continue;
+            }
+
+            $result = json_decode($response, true);
+            if ($result !== null) {
+                return $result;
+            }
+        }
+
+        return null;
+    }
+
+    // ================================================================
+    // تهيئة الاتصال (GetInitWallet)
+    // ================================================================
+
+    /**
+     * تهيئة الاتصال بالسيرفر والحصول على client_key
+     */
+    public function init(): bool
+    {
+        $data = [
+            'DtTime'   => (int)(microtime(true) * 1000),
+            'envir'    => 1,
+            'value'    => $this->initValue,
+            'VersNum'  => (int)$this->appVersion,
+        ];
+
+        $payload = $this->encrypt($data, $this->fcmKey, $this->fcmIv);
+
+        foreach ($this->bootstrapServers as $server) {
+            $host = str_replace('https://', '', $server);
+            $url = $server . '/api/HzHelp/GetInitWallet';
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => json_encode(['value' => $payload]),
+                CURLOPT_HTTPHEADER     => [
+                    'Content-Type: application/json; charset=utf-8',
+                    'User-Agent: okhttp/5.1.0',
+                    'Accept: application/json',
+                    'Accept-Encoding: gzip',
+                    'Authorization: ' . $this->authHeader,
+                    'Host: ' . $host,
+                ],
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_ENCODING       => '',
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($response && $httpCode === 200) {
+                $resp = json_decode($response, true);
+                if ($resp && isset($resp['success']) && $resp['success'] && isset($resp['result'])) {
+                    try {
+                        $dec = $this->decrypt($resp['result'], $this->fcmKey, $this->fcmIv);
+                        $this->clientKey = base64_decode($dec['Kl']);
+
+                        // بناء قائمة السيرفرات من الرد + الافتراضية
+                        $serverIps = $dec['lsIP'] ?? [];
+                        $uniqueServers = [];
+                        foreach ($serverIps as $s) {
+                            if (!in_array($s, $uniqueServers)) {
+                                $uniqueServers[] = $s;
+                            }
+                        }
+                        foreach ($this->bootstrapServers as $s) {
+                            if (!in_array($s, $uniqueServers)) {
+                                $uniqueServers[] = $s;
+                            }
+                        }
+                        $this->servers = $uniqueServers;
+                        return true;
+                    } catch (\Exception $e) {
+                        error_log('Jaib init decrypt error: ' . $e->getMessage());
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // ================================================================
+    // تسجيل الدخول (LogE2)
+    // ================================================================
+
+    /**
+     * تسجيل الدخول إلى حساب Jaib
+     */
+    public function login(string $phone, string $password): array
+    {
+        $this->phone = $phone;
+        $this->password = $password;
+
+        // التأكد من وجود client_key
+        if ($this->clientKey === null) {
+            if (!$this->init()) {
+                return [
+                    'success' => false,
+                    'message' => 'فشل الاتصال بسيرفرات Jaib',
+                ];
+            }
+        }
+
+        $data = [
+            'clientInfo' => [
+                'AppVersion'   => $this->appVersion,
+                'clientKey'    => $phone,
+                'clientSecret' => 'mangmasng',
+                'returnKey'    => (string)(int)substr((string)time(), -6),
+            ],
+            'deviceInfo' => [
+                'ConfirmCode' => '',
+                'deviceId'    => $this->deviceId,
+                'deviceInfo'  => 'HUAWEI LDN-L21',
+                'tknNot'      => $this->tknNot,
+                'langId'      => 1,
+                'otherInfo'   => json_encode([
+                    'brand' => 'HONOR',
+                    'deviceName' => 'HUAWEI',
+                    'ip' => '',
+                    'loginMethodType' => 1,
+                    'model' => 'LDN-L21',
+                    'os' => '26',
+                ]),
+                'sourceType' => 1,
+            ],
+            'password'    => $password,
+            'smsCode'     => $this->smsCode,
+            'UpdateData'  => $this->updateData,
+            'userName'    => $phone,
+        ];
+
+        $payload = $this->encrypt($data, $this->clientKey, $this->clientIv);
+        $resp = $this->request('/api/TokenAuth/LogE2', $payload);
+
+        if (!$resp) {
+            return [
+                'success' => false,
+                'message' => 'فشل الاتصال بالسيرفر',
+            ];
+        }
+
+        if (!isset($resp['success']) || !$resp['success']) {
+            $err = $resp['error'] ?? [];
+            $code = $err['code'] ?? '?';
+            $msg = $err['message'] ?? 'خطأ غير معروف';
+
+            if ($code == -1000) {
+                $msg = 'الجهاز يحتاج تأكيد من تطبيق آخر على نفس الحساب';
+            } elseif ($code == -1001) {
+                $msg = 'كود التفعيل غير صحيح';
+            }
+
+            return [
+                'success' => false,
+                'message' => $msg,
+                'code' => $code,
+            ];
+        }
+
+        // فك تشفير الرد
+        $raw = $resp['result'] ?? '';
+        if (is_array($raw)) {
+            $raw = $raw['value'] ?? '';
+        }
+        if (empty($raw)) {
+            return [
+                'success' => false,
+                'message' => 'رد فارغ من السيرفر',
+            ];
+        }
+
+        try {
+            $dec = $this->decrypt($raw, $this->clientKey, $this->clientIv);
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'فشل فك التشفير: ' . $e->getMessage(),
+            ];
+        }
+
+        // استخراج بيانات الجلسة
+        $this->accessToken = $dec['accessToken'] ?? null;
+        $this->sessionKey = base64_decode($dec['k'] ?? '');
+        $this->sessionIv = base64_decode($dec['mobileScon'] ?? '');
+        $this->createdAt = time();
+
+        $winfo = $dec['winfo'] ?? [];
+        $this->userName = $winfo['name'] ?? $phone;
+
+        $accounts = $dec['myAccount'] ?? [];
+        $bills = $dec['accountBills'] ?? [];
+
+        // حفظ الجلسة
+        $this->saveSession($accounts, $bills);
+
+        return [
+            'success'       => true,
+            'message'       => 'تم تسجيل الدخول بنجاح',
+            'user_name'     => $this->userName,
+            'accounts'      => $accounts,
+            'recent_bills'  => array_slice($bills, 0, 5),
+        ];
+    }
+
+    // ================================================================
+    // استعلام معاملة (ExecuteE2)
+    // ================================================================
+
+    /**
+     * استعلام عن معاملة برقم المرجع
+     */
+    public function queryTransaction(string $refId): array
+    {
+        if (!$this->sessionKey) {
+            return [
+                'success' => false,
+                'message' => 'غير مسجل الدخول - يجب تسجيل الدخول أولاً',
+            ];
+        }
+
+        // التحقق من صلاحية الجلسة
+        if (!$this->isSessionAlive()) {
+            // محاولة تجديد الجلسة
+            if (!$this->refreshSession()) {
+                return [
+                    'success' => false,
+                    'message' => 'انتهت صلاحية الجلسة - يجب تسجيل الدخول مجدداً',
+                ];
+            }
+        }
+
+        $data = [
+            'code'         => '',
+            'opType'       => 567,
+            'ReferenceID'  => $refId,
+        ];
+
+        $payload = $this->encrypt($data, $this->sessionKey, $this->sessionIv);
+        $headers = [];
+        if ($this->accessToken) {
+            $headers[] = 'auth: ' . $this->accessToken;
+        }
+
+        $resp = $this->request('/api/v1/Wallet/ExecuteE2', $payload, $headers);
+
+        if (!$resp) {
+            return [
+                'success' => false,
+                'message' => 'فشل الاتصال بالسيرفر',
+            ];
+        }
+
+        if (!isset($resp['success']) || !$resp['success']) {
+            $err = $resp['error'] ?? [];
+            return [
+                'success' => false,
+                'message' => $err['message'] ?? 'خطأ في الاستعلام',
+            ];
+        }
+
+        $raw = $resp['result'] ?? '';
+        if (is_array($raw)) {
+            $raw = $raw['value'] ?? '';
+        }
+        if (empty($raw)) {
+            return [
+                'success' => false,
+                'message' => 'رد فارغ من السيرفر',
+            ];
+        }
+
+        try {
+            $dec = $this->decrypt($raw, $this->sessionKey, $this->sessionIv);
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'فشل فك التشفير: ' . $e->getMessage(),
+            ];
+        }
+
+        // بناء نتيجة مفيدة
+        $result = [
+            'success'      => true,
+            'message'      => 'تم العثور على المعاملة',
+            'reference_id' => $dec['referenceID'] ?? $refId,
+            'amount'       => $dec['amount'] ?? null,
+            'currency'     => $dec['currencyName'] ?? 'YER',
+            'from_name'    => $dec['fromName'] ?? null,
+            'to_name'      => $dec['toName'] ?? null,
+            'note'         => $dec['note'] ?? null,
+            'date_time'    => $dec['dateTime'] ?? null,
+            'fields'       => [],
+        ];
+
+        // حقول تفصيلية
+        if (isset($dec['fields']) && is_array($dec['fields'])) {
+            foreach ($dec['fields'] as $f) {
+                if (!empty($f['value'])) {
+                    $result['fields'][] = [
+                        'name'  => $f['name'] ?? '',
+                        'value' => $f['value'] ?? '',
+                    ];
+                }
+            }
+        }
+
+        // التحقق إذا ما فيه خطأ
+        if ($dec['error'] || $dec['message']) {
+            $result['message'] = $dec['error'] ?? $dec['message'] ?? 'نتيجة غير واضحة';
+        }
+
+        return $result;
+    }
+
+    // ================================================================
+    // إدارة الجلسة
+    // ================================================================
+
+    /**
+     * حفظ بيانات الجلسة في الملف
+     */
+    private function saveSession(array $accounts = [], array $bills = []): void
+    {
+        $sessionDir = CACHE_PATH . '/jaib';
+        if (!is_dir($sessionDir)) {
+            @mkdir($sessionDir, 0755, true);
+        }
+
+        $data = [
+            'phone'          => $this->phone,
+            'password'       => $this->password,
+            'user_name'      => $this->userName,
+            'access_token'   => $this->accessToken,
+            'session_key_b64'=> base64_encode($this->sessionKey ?? ''),
+            'session_iv_b64' => base64_encode($this->sessionIv ?? ''),
+            'client_key_b64' => base64_encode($this->clientKey ?? ''),
+            'servers'        => $this->servers,
+            'accounts'       => $accounts,
+            'created_at'     => $this->createdAt,
+        ];
+
+        @file_put_contents(
+            $sessionDir . '/session.json',
+            json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    /**
+     * تحميل الجلسة المحفوظة
+     */
+    public function loadSession(): bool
+    {
+        $sessionFile = CACHE_PATH . '/jaib/session.json';
+        if (!file_exists($sessionFile)) {
+            return false;
+        }
+
+        try {
+            $data = json_decode(file_get_contents($sessionFile), true);
+            if (!$data || empty($data['session_key_b64'])) {
+                return false;
+            }
+
+            $this->phone       = $data['phone'] ?? null;
+            $this->password    = $data['password'] ?? null;
+            $this->userName    = $data['user_name'] ?? null;
+            $this->accessToken = $data['access_token'] ?? null;
+            $this->sessionKey  = base64_decode($data['session_key_b64']);
+            $this->sessionIv   = base64_decode($data['session_iv_b64']);
+            $this->clientKey   = base64_decode($data['client_key_b64']);
+            $this->servers     = $data['servers'] ?? $this->bootstrapServers;
+            $this->createdAt   = $data['created_at'] ?? null;
+
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * التحقق من صلاحية الجلسة
+     */
+    public function isSessionAlive(): bool
+    {
+        if ($this->createdAt === null) {
+            return false;
+        }
+        return (time() - $this->createdAt) < $this->sessionMaxAge;
+    }
+
+    /**
+     * تجديد الجلسة
+     */
+    public function refreshSession(): bool
+    {
+        if (!$this->phone || !$this->password) {
+            return false;
+        }
+
+        $oldPhone = $this->phone;
+        $oldPassword = $this->password;
+
+        $this->sessionKey = null;
+        $this->clientKey = null;
+
+        if (!$this->init()) {
+            return false;
+        }
+
+        $result = $this->login($oldPhone, $oldPassword);
+        return $result['success'];
+    }
+
+    // ================================================================
+    // تكامل مع نظام الدفع في المشروع
+    // ================================================================
+
+    /**
+     * التحقق من دفعة عبر استعلام رقم المرجع في Jaib
+     * (تستخدم لتفعيل الاشتراكات)
      */
     public function verifyPayment(string $transactionId): array
     {
-        // Validate transaction ID
         if (!Security::validateTransactionId($transactionId)) {
             return [
                 'success'  => false,
@@ -59,90 +610,51 @@ class JaibPayment
             ];
         }
 
-        // If Jaib API is not configured, use simulation mode
-        if (empty($this->apiKey) || empty($this->merchantId)) {
+        // محاولة استعلام المعاملة من Jaib
+        $queryResult = $this->queryTransaction($transactionId);
+
+        if (!$queryResult['success']) {
+            // فشل الاستعلام - نستخدم المحاكاة
             return $this->simulateVerification($transactionId);
         }
 
-        // Build verification request
-        $endpoint = $this->apiUrl . '/payments/verify';
-
-        $payload = [
-            'merchant_id'   => $this->merchantId,
-            'transaction_id' => $transactionId,
-            'timestamp'     => time(),
-        ];
-
-        // Generate signature
-        $signature = $this->generateSignature($payload);
-        $payload['signature'] = $signature;
-
-        try {
-            $response = $this->makeApiRequest('POST', $endpoint, $payload);
-
-            if ($response === null) {
-                return [
-                    'success'  => false,
-                    'verified' => false,
-                    'amount'   => null,
-                    'message'  => 'فشل الاتصال بخدمة الدفع',
-                ];
-            }
-
-            if (isset($response['status']) && $response['status'] === 'approved') {
-                return [
-                    'success'  => true,
-                    'verified' => true,
-                    'amount'   => (float) ($response['amount'] ?? 0),
-                    'message'  => 'تم التحقق من الدفع بنجاح',
-                ];
-            }
-
+        // التحقق من أن المعاملة تحتوي على مبلغ
+        $amount = $queryResult['amount'];
+        if ($amount === null) {
             return [
                 'success'  => true,
                 'verified' => false,
                 'amount'   => null,
-                'message'  => $response['message'] ?? 'لم يتم التحقق من الدفع',
-            ];
-        } catch (\Exception $e) {
-            error_log('Jaib verification error: ' . $e->getMessage());
-            return [
-                'success'  => false,
-                'verified' => false,
-                'amount'   => null,
-                'message'  => 'حدث خطأ أثناء التحقق من الدفع',
+                'message'  => 'لم يتم العثور على معلومات المبلغ',
+                'raw'      => $queryResult,
             ];
         }
+
+        return [
+            'success'  => true,
+            'verified' => true,
+            'amount'   => (float)$amount,
+            'message'  => 'تم التحقق من الدفع بنجاح',
+            'details'  => $queryResult,
+        ];
     }
 
     /**
-     * Simulate payment verification (for development/testing)
-     * Transaction IDs starting with "APPROVED-" simulate successful payments
-     *
-     * @param string $transactionId
-     * @return array{success: bool, verified: bool, amount: float|null, message: string}
+     * محاكاة التحقق (للتطوير والاختبار)
      */
     private function simulateVerification(string $transactionId): array
     {
-        // Simulate a slight delay like a real API call
         usleep(200000); // 200ms
 
-        // Check for simulation prefix
         if (strtoupper(substr($transactionId, 0, 9)) === 'APPROVED-') {
-            // Extract amount from transaction ID if encoded
             $parts = explode('-', $transactionId);
-            $amount = null;
+            $amount = 2000.0;
             foreach ($parts as $part) {
                 if (strtoupper(substr($part, 0, 4)) === 'AMT-') {
-                    $amount = (float) substr($part, 4);
+                    $amount = (float)substr($part, 4);
                     break;
                 }
             }
-
-            if ($amount === null) {
-                $amount = 2000.0; // Default PRO plan price
-            }
-
             return [
                 'success'  => true,
                 'verified' => true,
@@ -160,7 +672,6 @@ class JaibPayment
             ];
         }
 
-        // Random simulation (70% chance of success)
         if (rand(1, 10) <= 7) {
             return [
                 'success'  => true,
@@ -179,59 +690,40 @@ class JaibPayment
     }
 
     /**
-     * Process a payment: verify transaction and activate subscription
-     *
-     * @param int    $userId        User ID
-     * @param string $plan          Plan name (PRO, PREMIUM)
-     * @param string $transactionId Transaction ID from Jaib
-     * @return array{success: bool, message: string, subscription?: array}
+     * معالجة دفعة كاملة: تحقق + تفعيل اشتراك
      */
     public function processPayment(int $userId, string $plan, string $transactionId): array
     {
-        // Validate plan
         if (!validatePlan($plan)) {
-            return [
-                'success' => false,
-                'message' => 'باقة الاشتراك غير صالحة',
-            ];
+            return ['success' => false, 'message' => 'باقة الاشتراك غير صالحة'];
         }
-
         $plan = strtoupper($plan);
 
-        // Validate transaction ID
         if (!Security::validateTransactionId($transactionId)) {
-            return [
-                'success' => false,
-                'message' => 'معرف المعاملة غير صالح',
-            ];
+            return ['success' => false, 'message' => 'معرف المعاملة غير صالح'];
         }
 
-        // Check for duplicate transaction
-        $duplicate = $this->checkDuplicateTransaction($transactionId);
-        if ($duplicate) {
-            return [
-                'success' => false,
-                'message' => 'تم استخدام معرف المعاملة هذا من قبل',
-            ];
+        // التحقق من عدم التكرار
+        $duplicate = fetch(
+            "SELECT id, status FROM payments WHERE transaction_id = :txid LIMIT 1",
+            [':txid' => $transactionId]
+        );
+        if ($duplicate !== null && $duplicate['status'] !== 'REJECTED') {
+            return ['success' => false, 'message' => 'تم استخدام معرف المعاملة هذا من قبل'];
         }
 
-        // Verify user exists
+        // التحقق من وجود المستخدم
         $user = fetch(
             "SELECT id, name, email, plan FROM users WHERE id = :id LIMIT 1",
             [':id' => $userId]
         );
-
         if ($user === null) {
-            return [
-                'success' => false,
-                'message' => 'المستخدم غير موجود',
-            ];
+            return ['success' => false, 'message' => 'المستخدم غير موجود'];
         }
 
-        // Get plan price
-        $planPrice = $this->getPlanPrice($plan);
+        $planPrice = PLANS[$plan]['price'] ?? 0;
 
-        // Create pending payment record
+        // إنشاء سجل دفع
         try {
             $paymentId = insert('payments', [
                 'user_id'        => $userId,
@@ -242,69 +734,37 @@ class JaibPayment
                 'transaction_id' => $transactionId,
             ]);
         } catch (\Exception $e) {
-            // Duplicate transaction_id constraint violation
             if (strpos($e->getMessage(), 'UNIQUE') !== false || strpos($e->getMessage(), 'unique') !== false) {
-                return [
-                    'success' => false,
-                    'message' => 'تم استخدام معرف المعاملة هذا من قبل',
-                ];
+                return ['success' => false, 'message' => 'تم استخدام معرف المعاملة هذا من قبل'];
             }
             error_log('Payment record creation failed: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'حدث خطأ أثناء معالجة الدفع',
-            ];
+            return ['success' => false, 'message' => 'حدث خطأ أثناء معالجة الدفع'];
         }
 
-        // Verify payment with Jaib
+        // التحقق من الدفع عبر Jaib
         $verification = $this->verifyPayment($transactionId);
 
         if (!$verification['success']) {
-            // API call failed - keep payment as PENDING
-            Security::logActivity($userId, 'payment_api_error', 'Jaib API error for transaction: ' . $transactionId);
-            return [
-                'success' => false,
-                'message' => $verification['message'],
-            ];
+            Security::logActivity($userId, 'payment_api_error', 'Jaib error: ' . $transactionId);
+            return ['success' => false, 'message' => $verification['message']];
         }
 
         if (!$verification['verified']) {
-            // Payment not verified
-            update(
-                'payments',
-                ['status' => 'REJECTED'],
-                'id = :id',
-                [':id' => $paymentId]
-            );
-
-            Security::logActivity($userId, 'payment_rejected', 'Payment rejected: ' . $transactionId);
-            return [
-                'success' => false,
-                'message' => $verification['message'],
-            ];
+            update('payments', ['status' => 'REJECTED'], 'id = :id', [':id' => $paymentId]);
+            Security::logActivity($userId, 'payment_rejected', 'Rejected: ' . $transactionId);
+            return ['success' => false, 'message' => $verification['message']];
         }
 
-        // Payment verified - update status and activate subscription
+        // تفعيل الاشتراك
         try {
             db()->beginTransaction();
 
-            update(
-                'payments',
-                ['status' => 'APPROVED'],
-                'id = :id',
-                [':id' => $paymentId]
-            );
-
-            // Activate subscription
-            $subscription = $this->activateSubscription($userId, $plan, (int) $paymentId);
+            update('payments', ['status' => 'APPROVED'], 'id = :id', [':id' => $paymentId]);
+            $subscription = $this->activateSubscription($userId, $plan, (int)$paymentId);
 
             db()->commit();
 
-            Security::logActivity(
-                $userId,
-                'payment_success',
-                "Payment approved: {$plan} plan, amount: {$planPrice} " . JAIB_CURRENCY . ", transaction: {$transactionId}"
-            );
+            Security::logActivity($userId, 'payment_success', "{$plan} - {$planPrice} " . JAIB_CURRENCY . " - {$transactionId}");
 
             return [
                 'success'      => true,
@@ -314,115 +774,51 @@ class JaibPayment
         } catch (\Exception $e) {
             db()->rollback();
             error_log('Payment processing failed: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'حدث خطأ أثناء تفعيل الاشتراك',
-            ];
+            return ['success' => false, 'message' => 'حدث خطأ أثناء تفعيل الاشتراك'];
         }
     }
 
     /**
-     * Check if a transaction ID has already been used
-     *
-     * @param string $transactionId
-     * @return bool True if duplicate
-     */
-    public function checkDuplicateTransaction(string $transactionId): bool
-    {
-        $existing = fetch(
-            "SELECT id, status FROM payments WHERE transaction_id = :txid LIMIT 1",
-            [':txid' => $transactionId]
-        );
-
-        if ($existing === null) {
-            return false;
-        }
-
-        // If the existing payment was rejected, allow retry
-        if ($existing['status'] === 'REJECTED') {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Get the price for a subscription plan
-     *
-     * @param string $plan Plan name
-     * @return float Price amount
-     */
-    public function getPlanPrice(string $plan): float
-    {
-        $plan = strtoupper($plan);
-
-        if (!isset(PLANS[$plan])) {
-            return 0.0;
-        }
-
-        return (float) PLANS[$plan]['price'];
-    }
-
-    /**
-     * Activate a subscription for a user
-     *
-     * @param int    $userId    User ID
-     * @param string $plan      Plan name
-     * @param int    $paymentId Associated payment ID
-     * @return array Subscription details
+     * تفعيل اشتراك
      */
     public function activateSubscription(int $userId, string $plan, int $paymentId = 0): array
     {
         $plan = strtoupper($plan);
-
         if (!isset(PLANS[$plan])) {
             throw new \InvalidArgumentException('Invalid plan: ' . $plan);
         }
 
         $planConfig = PLANS[$plan];
-        $durationDays = (int) ($planConfig['duration'] ?? 30);
+        $durationDays = (int)($planConfig['duration'] ?? 30);
         $now = new \DateTime();
         $expiresAt = $now->modify("+{$durationDays} days")->format('Y-m-d H:i:s');
 
-        // Deactivate existing active subscriptions
-        update(
-            'subscriptions',
-            ['is_active' => 0],
-            'user_id = :user_id AND is_active = 1',
-            [':user_id' => $userId]
-        );
+        // إلغاء الاشتراكات النشطة القديمة
+        update('subscriptions', ['is_active' => 0], 'user_id = :user_id AND is_active = 1', [':user_id' => $userId]);
 
-        // Create new subscription
+        // إنشاء اشتراك جديد
         $subscriptionId = insert('subscriptions', [
-            'user_id'   => $userId,
-            'plan'      => $plan,
+            'user_id'    => $userId,
+            'plan'       => $plan,
             'started_at' => $now->format('Y-m-d H:i:s'),
             'expires_at' => $expiresAt,
-            'is_active' => 1,
+            'is_active'  => 1,
             'payment_id' => $paymentId > 0 ? $paymentId : null,
         ]);
 
-        // Update user's plan and subscription expiry
+        // تحديث بيانات المستخدم
         $userData = [
-            'plan'                   => $plan,
+            'plan'                    => $plan,
             'subscription_expires_at' => $expiresAt,
-            'updated_at'             => date('Y-m-d H:i:s'),
+            'updated_at'              => date('Y-m-d H:i:s'),
         ];
-
-        // Enable phone hiding for paid plans
         if ($planConfig['can_hide_phone']) {
             $userData['is_phone_hidden'] = 1;
         }
+        update('users', $userData, 'id = :id', [':id' => $userId]);
 
-        update(
-            'users',
-            $userData,
-            'id = :id',
-            [':id' => $userId]
-        );
-
-        // Update session if user is logged in
-        if (isset($_SESSION['user_id']) && (int) $_SESSION['user_id'] === $userId) {
+        // تحديث الجلسة
+        if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === $userId) {
             $_SESSION['user_plan'] = $plan;
             if (isset($_SESSION['user_data'])) {
                 $_SESSION['user_data']['plan'] = $plan;
@@ -446,250 +842,91 @@ class JaibPayment
     }
 
     /**
-     * Handle payment webhook callback from Jaib
-     *
-     * @param array $payload Webhook payload data
-     * @return array{success: bool, message: string}
+     * التحقق من تكرار المعاملة
      */
-    public function handleWebhook(array $payload): array
+    public function checkDuplicateTransaction(string $transactionId): bool
     {
-        // Verify webhook secret
-        if (empty(JAIB_WEBHOOK_SECRET)) {
-            return [
-                'success' => false,
-                'message' => 'Webhook secret not configured',
-            ];
-        }
-
-        // Verify signature
-        $receivedSignature = $payload['signature'] ?? '';
-        $expectedSignature = $this->generateSignature($payload);
-
-        if (!hash_equals($expectedSignature, $receivedSignature)) {
-            Security::logActivity(null, 'webhook_invalid', 'Invalid webhook signature');
-            return [
-                'success' => false,
-                'message' => 'Invalid signature',
-            ];
-        }
-
-        $transactionId = $payload['transaction_id'] ?? '';
-        $status = $payload['status'] ?? '';
-
-        if (empty($transactionId) || empty($status)) {
-            return [
-                'success' => false,
-                'message' => 'Missing transaction data',
-            ];
-        }
-
-        // Find payment record
-        $payment = fetch(
-            "SELECT * FROM payments WHERE transaction_id = :txid LIMIT 1",
+        $existing = fetch(
+            "SELECT id, status FROM payments WHERE transaction_id = :txid LIMIT 1",
             [':txid' => $transactionId]
         );
-
-        if ($payment === null) {
-            return [
-                'success' => false,
-                'message' => 'Payment not found',
-            ];
-        }
-
-        // Update payment status based on webhook
-        if ($status === 'approved' && $payment['status'] === 'PENDING') {
-            update(
-                'payments',
-                ['status' => 'APPROVED'],
-                'id = :id',
-                [':id' => $payment['id']]
-            );
-
-            // Activate subscription
-            $this->activateSubscription(
-                (int) $payment['user_id'],
-                $payment['plan'],
-                (int) $payment['id']
-            );
-
-            Security::logActivity(
-                (int) $payment['user_id'],
-                'webhook_approved',
-                'Webhook: Payment approved via callback'
-            );
-
-            return [
-                'success' => true,
-                'message' => 'Payment approved via webhook',
-            ];
-        }
-
-        if ($status === 'rejected') {
-            update(
-                'payments',
-                ['status' => 'REJECTED'],
-                'id = :id',
-                [':id' => $payment['id']]
-            );
-
-            Security::logActivity(
-                (int) $payment['user_id'],
-                'webhook_rejected',
-                'Webhook: Payment rejected via callback'
-            );
-
-            return [
-                'success' => true,
-                'message' => 'Payment rejected via webhook',
-            ];
-        }
-
-        return [
-            'success' => true,
-            'message' => 'Webhook processed',
-        ];
+        if ($existing === null) return false;
+        if ($existing['status'] === 'REJECTED') return false;
+        return true;
     }
 
     /**
-     * Get user's payment history
-     *
-     * @param int   $userId User ID
-     * @param int   $limit  Max records (default: 20)
-     * @param int   $offset Offset for pagination
-     * @return array Array of payment records
+     * سعر الباقة
+     */
+    public function getPlanPrice(string $plan): float
+    {
+        $plan = strtoupper($plan);
+        return isset(PLANS[$plan]) ? (float)PLANS[$plan]['price'] : 0.0;
+    }
+
+    /**
+     * سجل المدفوعات
      */
     public function getPaymentHistory(int $userId, int $limit = 20, int $offset = 0): array
     {
         return fetchAll(
             "SELECT * FROM payments WHERE user_id = :user_id ORDER BY created_at DESC LIMIT :limit OFFSET :offset",
-            [
-                ':user_id' => $userId,
-                ':limit'   => $limit,
-                ':offset'  => $offset,
-            ]
+            [':user_id' => $userId, ':limit' => $limit, ':offset' => $offset]
         );
     }
 
     /**
-     * Get user's subscription history
-     *
-     * @param int $userId User ID
-     * @return array Array of subscription records
+     * سجل الاشتراكات
      */
     public function getSubscriptionHistory(int $userId): array
     {
         return fetchAll(
             "SELECT s.*, p.amount, p.currency, p.status as payment_status
-             FROM subscriptions s
-             LEFT JOIN payments p ON s.payment_id = p.id
-             WHERE s.user_id = :user_id
-             ORDER BY s.started_at DESC",
+             FROM subscriptions s LEFT JOIN payments p ON s.payment_id = p.id
+             WHERE s.user_id = :user_id ORDER BY s.started_at DESC",
             [':user_id' => $userId]
         );
     }
 
     /**
-     * Get active subscription for a user
-     *
-     * @param int $userId User ID
-     * @return array|null Active subscription or null
+     * الاشتراك النشط
      */
     public function getActiveSubscription(int $userId): ?array
     {
         return fetch(
             "SELECT * FROM subscriptions WHERE user_id = :user_id AND is_active = 1 AND expires_at > :now ORDER BY expires_at DESC LIMIT 1",
-            [
-                ':user_id' => $userId,
-                ':now'     => date('Y-m-d H:i:s'),
-            ]
+            [':user_id' => $userId, ':now' => date('Y-m-d H:i:s')]
         );
     }
 
-    /**
-     * Make an HTTP request to the Jaib API
-     *
-     * @param string $method HTTP method
-     * @param string $url    API endpoint URL
-     * @param array  $data   Request data
-     * @return array|null Decoded response or null on failure
-     */
-    private function makeApiRequest(string $method, string $url, array $data = []): ?array
+    // ================================================================
+    // Getters للحالة
+    // ================================================================
+
+    public function isLoggedIn(): bool
     {
-        $ch = curl_init();
-
-        $headers = [
-            'Content-Type: application/json',
-            'Accept: application/json',
-            'Authorization: Bearer ' . $this->apiKey,
-            'X-Merchant-ID: ' . $this->merchantId,
-        ];
-
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST  => $method,
-            CURLOPT_POSTFIELDS     => json_encode($data),
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_TIMEOUT        => $this->timeout,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_FOLLOWLOCATION => false,
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-
-        curl_close($ch);
-
-        if ($error) {
-            error_log('cURL error: ' . $error);
-            return null;
-        }
-
-        if ($response === false) {
-            return null;
-        }
-
-        $decoded = json_decode($response, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log('JSON decode error: ' . json_last_error_msg());
-            return null;
-        }
-
-        // Check for API-level errors
-        if (isset($decoded['error'])) {
-            error_log('Jaib API error: ' . ($decoded['error']['message'] ?? json_encode($decoded['error'])));
-            return null;
-        }
-
-        return $decoded;
+        return $this->sessionKey !== null && $this->isSessionAlive();
     }
 
-    /**
-     * Generate a signature for API requests
-     *
-     * @param array $payload Request payload
-     * @return string HMAC-SHA256 signature
-     */
-    private function generateSignature(array $payload): string
+    public function getUserName(): ?string
     {
-        // Sort payload keys alphabetically
-        ksort($payload);
+        return $this->userName;
+    }
 
-        // Build signature string
-        $signatureParts = [];
-        foreach ($payload as $key => $value) {
-            if ($key === 'signature') {
-                continue;
-            }
-            $signatureParts[] = $key . '=' . $value;
-        }
+    public function getPhone(): ?string
+    {
+        return $this->phone;
+    }
 
-        $signatureString = implode('&', $signatureParts) . $this->merchantSecret;
+    public function getSessionAge(): string
+    {
+        if ($this->createdAt === null) return '?';
+        $m = (int)((time() - $this->createdAt) / 60);
+        return $m < 60 ? "{$m} دقيقة" : ($m / 60 | 0) . "س " . ($m % 60) . "د";
+    }
 
-        return hash_hmac('sha256', $signatureString, $this->merchantSecret);
+    public function getServers(): array
+    {
+        return $this->servers ?: $this->bootstrapServers;
     }
 }

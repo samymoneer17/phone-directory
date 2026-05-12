@@ -1,7 +1,7 @@
 -- ============================================================
 -- دليل الهاتف الدولي - Database Schema
 -- International Phone Directory
--- Compatible with SQLite and MySQL
+-- Compatible with SQLite (Local Database)
 -- ============================================================
 
 -- Users table
@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS users (
     plan TEXT DEFAULT 'FREE' CHECK(plan IN ('FREE','PRO','PREMIUM')),
     subscription_expires_at TEXT DEFAULT NULL,
     is_phone_hidden INTEGER DEFAULT 0,
-    google_id TEXT DEFAULT NULL,
     reset_token TEXT DEFAULT NULL,
     reset_token_expires_at TEXT DEFAULT NULL,
     search_count INTEGER DEFAULT 0,
@@ -86,7 +85,6 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
 CREATE INDEX IF NOT EXISTS idx_users_plan ON users(plan);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
