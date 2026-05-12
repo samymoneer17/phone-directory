@@ -18,10 +18,35 @@ require_once __DIR__ . '/../includes/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+// CORS headers (must be set before any other logic)
+$origin = SITE_URL;
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    $parsed = parse_url($_SERVER['HTTP_ORIGIN']);
+    $siteParsed = parse_url(SITE_URL);
+    if ($parsed['host'] === $siteParsed['host']) {
+        $origin = $_SERVER['HTTP_ORIGIN'];
+    }
+}
+header('Access-Control-Allow-Origin: ' . $origin);
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+header('Access-Control-Allow-Credentials: true');
+
+// Handle preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 // Only POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
+
+// IMPORTANT: Initialize secure session BEFORE CSRF check
+// This sets session_name to 'phone_dir_sid' so we read from the same
+// session that csrf.php wrote the token into
+Security::secureSession();
 
 // ============================================================
 // Read input: support both JSON body and form-data ($_POST)

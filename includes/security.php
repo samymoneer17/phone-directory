@@ -477,15 +477,15 @@ class Security
     // ================================================================
 
     /**
-     * Generate a session fingerprint from IP and User-Agent
+     * Generate a session fingerprint from User-Agent only.
+     * NOTE: On Vercel serverless, the forwarded IP may vary between
+     * function invocations, so we only use User-Agent for fingerprinting.
      */
     public static function generateFingerprint(): string
     {
-        $ip = self::getClientIP();
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        // Add a secret salt to prevent fingerprint forgery
         $salt = 'phone_dir_fp_salt_2024';
-        return hash('sha256', $ip . '|' . $ua . '|' . $salt);
+        return hash('sha256', $ua . '|' . $salt);
     }
 
     /**
@@ -515,16 +515,28 @@ class Security
             return;
         }
 
-        ini_set('session.use_strict_mode', '1');
+        // On Vercel, ensure session files are stored in /tmp
+        if (IS_VERCEL) {
+            $sessionDir = '/tmp/sessions';
+            if (!is_dir($sessionDir)) {
+                @mkdir($sessionDir, 0755, true);
+            }
+            if (is_dir($sessionDir)) {
+                ini_set('session.save_path', $sessionDir);
+            }
+        }
+
+        ini_set('session.use_strict_mode', '0'); // Vercel: allow existing session IDs
         ini_set('session.use_trans_sid', '0');
         ini_set('session.use_only_cookies', '1');
 
         $cookieParams = session_get_cookie_params();
+        $secure = IS_VERCEL ? true : SESSION_COOKIE_SECURE;
         session_set_cookie_params([
             'lifetime'  => SESSION_LIFETIME,
             'path'      => $cookieParams['path'] ?? '/',
             'domain'    => $cookieParams['domain'] ?? '',
-            'secure'    => SESSION_COOKIE_SECURE,
+            'secure'    => $secure,
             'httponly'   => SESSION_COOKIE_HTTPONLY,
             'samesite'  => SESSION_COOKIE_SAMESITE,
         ]);
@@ -537,8 +549,9 @@ class Security
             $_SESSION['fingerprint'] = self::generateFingerprint();
         }
 
-        // Verify fingerprint - if mismatch, destroy session (possible hijacking)
-        if (!self::verifyFingerprint()) {
+        // Only enforce fingerprint for logged-in sessions (skip for anonymous API calls)
+        $isLoggedIn = isset($_SESSION['user_id']);
+        if ($isLoggedIn && !self::verifyFingerprint()) {
             self::logSecurityEvent('session_hijack_attempt', 'CRITICAL',
                 $_SESSION['user_id'] ?? null, self::getClientIP(),
                 'Session fingerprint mismatch - possible hijacking attempt');
@@ -552,19 +565,23 @@ class Security
             return;
         }
 
-        // Check if user is banned
+        // Check if user is banned (non-fatal on Vercel)
         if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
-            $user = fetch("SELECT role FROM users WHERE id = :id", [':id' => $_SESSION['user_id']]);
-            if ($user !== null && $user['role'] === 'BANNED') {
-                self::destroySession();
-                return;
+            try {
+                $user = fetch("SELECT role FROM users WHERE id = :id", [':id' => $_SESSION['user_id']]);
+                if ($user !== null && $user['role'] === 'BANNED') {
+                    self::destroySession();
+                    return;
+                }
+            } catch (\Exception $e) {
+                // Non-fatal: skip banned check if DB is unavailable
             }
         }
 
         // Regenerate session ID periodically (every 30 minutes)
         if (isset($_SESSION['last_regeneration'])) {
             if (time() - $_SESSION['last_regeneration'] > 1800) {
-                session_regenerate_id(true);
+                session_regenerate_id(false); // false = keep old session file
                 $_SESSION['last_regeneration'] = time();
                 $_SESSION['fingerprint'] = self::generateFingerprint();
             }
