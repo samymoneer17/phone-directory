@@ -167,7 +167,7 @@
                         <a href="plans.html" class="user-dropdown-item"><i data-lucide="credit-card" style="width:16px;height:16px"></i> الاشتراك</a>
                         <a href="account.html" class="user-dropdown-item"><i data-lucide="settings" style="width:16px;height:16px"></i> الإعدادات</a>
                         <div class="user-dropdown-divider"></div>
-                        <a href="#" class="user-dropdown-item" style="color:var(--danger)" onclick="DalilApp.post('auth.php',{action:'logout'}).then(()=>{localStorage.removeItem('user');window.location='index.html'})"><i data-lucide="log-out" style="width:16px;height:16px"></i> تسجيل الخروج</a>
+                        <a href="#" class="user-dropdown-item" style="color:var(--danger)" onclick="DalilApp.logout();window.location='index.html'"><i data-lucide="log-out" style="width:16px;height:16px"></i> تسجيل الخروج</a>
                     </div>
                 </div>
                 <button class="hamburger" id="hamburgerBtn"><span></span><span></span><span></span></button>
@@ -278,7 +278,7 @@
         <button class="back-to-top" id="backToTop"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
     </footer>
 
-    <script src="assets/js/dalil-app.js?v=3"></script>
+    <script src="assets/js/dalil-app.js?v=4"></script>
     <script>
     // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', function() {
@@ -337,7 +337,7 @@
         DalilApp.post('auth.php', {action: 'login', email: email, password: password})
             .then(function(data) {
                 if (data.success) {
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    DalilApp.setUser(data.user, data.auth_token);
                     window.location.href = 'dashboard.html';
                 } else {
                     formErrorText.textContent = data.message || 'حدث خطأ في تسجيل الدخول';

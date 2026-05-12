@@ -115,6 +115,7 @@ try {
                         'created_at' => $result['user']['created_at'] ?? '',
                         'search_count' => (int) ($result['user']['search_count'] ?? 0),
                     ],
+                    'auth_token' => $result['auth_token'] ?? '',
                 ]);
             } else {
                 jsonResponse(['success' => false, 'error' => $result['message']]);
@@ -172,6 +173,7 @@ try {
                         'created_at' => $result['user']['created_at'] ?? '',
                         'search_count' => (int) ($result['user']['search_count'] ?? 0),
                     ],
+                    'auth_token' => $result['auth_token'] ?? '',
                 ]);
             } else {
                 jsonResponse(['success' => false, 'error' => $result['message']]);
@@ -233,6 +235,11 @@ try {
         // =====================================================
         case 'logout':
             $userId = null;
+            // Revoke auth token from request
+            $authToken = $input['auth_token'] ?? '';
+            if (!empty($authToken)) {
+                Auth::revokeAuthToken($authToken);
+            }
             if (Auth::isLoggedIn()) {
                 $user = Auth::getCurrentUser();
                 $userId = $user['id'] ?? null;

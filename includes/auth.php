@@ -238,8 +238,11 @@ class Auth
         // Clear failed login attempts
         Security::clearFailedLogins($email, $ip);
 
-        // Set session
+        // Set session (for traditional servers)
         self::setUserSession($user);
+
+        // Generate auth token (for Vercel serverless)
+        $authToken = self::generateAuthToken((int) $user['id']);
 
         // Update last login
         update('users', ['updated_at' => date('Y-m-d H:i:s')], 'id = :id', [':id' => $user['id']]);
@@ -252,6 +255,7 @@ class Auth
             'success' => true,
             'message' => 'تم تسجيل الدخول بنجاح',
             'user' => $user,
+            'auth_token' => $authToken,
         ];
     }
 
@@ -357,6 +361,9 @@ class Auth
                 self::setUserSession($user);
             }
 
+            // Generate auth token (for Vercel serverless)
+            $authToken = self::generateAuthToken((int) $userId);
+
             Security::logActivity($userId, 'register', 'New user registered: ' . $email);
             Security::logSecurityEvent('user_registered', 'INFO', (int)$userId,
                 Security::getClientIP(), 'New registration from IP');
@@ -365,6 +372,7 @@ class Auth
                 'success' => true,
                 'message' => 'تم إنشاء الحساب بنجاح',
                 'user' => $user,
+                'auth_token' => $authToken,
             ];
         } catch (\Exception $e) {
             error_log('Registration failed: ' . $e->getMessage());
@@ -776,6 +784,104 @@ class Auth
             'limit'     => $limit,
             'remaining' => $limit - ($currentCount + 1),
         ];
+    }
+
+    /**
+     * Generate an auth token and store it in the database.
+     * Returns the token string. Expires after SESSION_LIFETIME seconds.
+     */
+    public static function generateAuthToken(int $userId): string
+    {
+        $token = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', time() + SESSION_LIFETIME);
+
+        try {
+            update('users', [
+                'auth_token' => $token,
+                'auth_token_expires_at' => $expiresAt,
+            ], 'id = :id', [':id' => $userId]);
+        } catch (\Exception $e) {
+            error_log('Failed to generate auth token: ' . $e->getMessage());
+        }
+
+        return $token;
+    }
+
+    /**
+     * Validate an auth token and return the user if valid.
+     * Returns null if token is invalid or expired.
+     */
+    public static function validateAuthToken(string $token): ?array
+    {
+        if (empty($token)) return null;
+
+        try {
+            $user = fetch(
+                "SELECT id, name, email, phone, plan, role, avatar, search_count, created_at
+                 FROM users
+                 WHERE auth_token = :token
+                 AND auth_token_expires_at > :now
+                 LIMIT 1",
+                [':token' => $token, ':now' => date('Y-m-d H:i:s')]
+            );
+
+            return $user;
+        } catch (\Exception $e) {
+            error_log('Auth token validation failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Delete auth token (used on logout)
+     */
+    public static function revokeAuthToken(string $token): void
+    {
+        if (empty($token)) return;
+        try {
+            update('users', [
+                'auth_token' => null,
+                'auth_token_expires_at' => null,
+            ], 'auth_token = :token', [':token' => $token]);
+        } catch (\Exception $e) {
+            error_log('Failed to revoke auth token: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get user by auth token from request (header or body)
+     * This is the main auth method for Vercel serverless
+     */
+    public static function getUserByRequestToken(): ?array
+    {
+        // Check Authorization header first
+        $token = '';
+        if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+            if (strpos($authHeader, 'Bearer ') === 0) {
+                $token = substr($authHeader, 7);
+            }
+        }
+
+        // Check X-Auth-Token header
+        if (empty($token) && !empty($_SERVER['HTTP_X_AUTH_TOKEN'])) {
+            $token = $_SERVER['HTTP_X_AUTH_TOKEN'];
+        }
+
+        // Check POST body
+        if (empty($token)) {
+            $input = Security::getJsonInput();
+            if ($input && !empty($input['auth_token'])) {
+                $token = $input['auth_token'];
+            }
+        }
+
+        // Check GET param
+        if (empty($token) && !empty($_GET['auth_token'])) {
+            $token = $_GET['auth_token'];
+        }
+
+        return self::validateAuthToken($token);
     }
 
     private static function setUserSession(array $user): void

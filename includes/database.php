@@ -146,6 +146,18 @@ class Database
                 }
             }
         }
+
+        // Migrate: add auth_token columns if they don't exist (for existing DBs)
+        try {
+            $this->pdo->exec("ALTER TABLE users ADD COLUMN auth_token TEXT DEFAULT NULL");
+        } catch (\PDOException $e) {
+            // Column already exists - ignore
+        }
+        try {
+            $this->pdo->exec("ALTER TABLE users ADD COLUMN auth_token_expires_at TEXT DEFAULT NULL");
+        } catch (\PDOException $e) {
+            // Column already exists - ignore
+        }
     }
 
     /**

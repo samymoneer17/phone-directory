@@ -84,17 +84,10 @@ switch ($action) {
         break;
 
     case 'search':
-        // Auth check — on Vercel serverless, PHP sessions don't persist
-        // between function invocations, so we accept user_id from the client
-        $userId = (int) ($data['user_id'] ?? 0);
-        if ($userId <= 0) {
-            jsonResponse(['success' => false, 'error' => 'auth_required', 'message' => 'يجب تسجيل الدخول أولاً'], 401);
-        }
-
-        // Verify user exists in database
-        $user = fetch("SELECT id, name, email, plan, search_count, created_at FROM users WHERE id = :id", [':id' => $userId]);
+        // Auth check using token (Vercel serverless compatible)
+        $user = Auth::getUserByRequestToken();
         if ($user === null) {
-            jsonResponse(['success' => false, 'error' => 'auth_required', 'message' => 'حساب المستخدم غير موجود'], 401);
+            jsonResponse(['success' => false, 'error' => 'auth_required', 'message' => 'يجب تسجيل الدخول أولاً'], 401);
         }
         $query = Security::sanitizeInput($data['query'] ?? '');
         $type = ($data['type'] ?? 'NUMBER') === 'NAME' ? 'NAME' : 'NUMBER';

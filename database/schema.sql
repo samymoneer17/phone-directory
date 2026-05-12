@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_phone_hidden INTEGER DEFAULT 0,
     reset_token TEXT DEFAULT NULL,
     reset_token_expires_at TEXT DEFAULT NULL,
+    auth_token TEXT DEFAULT NULL,
+    auth_token_expires_at TEXT DEFAULT NULL,
     search_count INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
@@ -143,3 +145,4 @@ CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address);
 CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_blocked_ips ON blocked_ips(ip_address);
+CREATE INDEX IF NOT EXISTS idx_users_auth_token ON users(auth_token);

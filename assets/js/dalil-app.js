@@ -2,10 +2,10 @@
  * dalil-app.js - Shared JS module for phone directory
  * Handles: auth state, CSRF tokens, API calls, user menu
  * 
- * Vercel Serverless Note:
- * PHP sessions in /tmp don't persist between serverless function invocations.
- * Auth state relies primarily on localStorage (client-side) with server
- * verification as a secondary check. Only explicit logout clears the state.
+ * Vercel Serverless Auth:
+ * Uses database-backed auth tokens instead of PHP sessions.
+ * Token is stored in localStorage and sent with every API request.
+ * Token expires after 2 hours — user must login again.
  */
 
 const DalilApp = {
@@ -14,11 +14,11 @@ const DalilApp = {
     // Get a fresh CSRF token from server
     async getCSRFToken() {
         try {
-            const res = await fetch(this.apiBase + '/csrf.php', {
+            var res = await fetch(this.apiBase + '/csrf.php', {
                 credentials: 'same-origin',
             });
             if (!res.ok) return '';
-            const data = await res.json();
+            var data = await res.json();
             if (data.success && data.csrf_token) {
                 sessionStorage.setItem('csrf_token', data.csrf_token);
                 return data.csrf_token;
@@ -34,62 +34,86 @@ const DalilApp = {
         return sessionStorage.getItem('csrf_token') || '';
     },
 
-    // Check auth status (Vercel-compatible: localStorage-first approach)
+    // Check auth status using auth_token
     async checkAuth() {
-        // Step 1: Immediately show user from localStorage (instant UI)
         var cachedUser = this.getUser();
-        if (cachedUser) {
+        var authToken = localStorage.getItem('auth_token');
+
+        // Step 1: Show user from cache immediately (instant UI)
+        if (cachedUser && authToken) {
             this.updateUI(cachedUser);
         }
 
-        // Step 2: Verify with server — send user_id so serverless can check DB
-        try {
-            var uid = cachedUser ? cachedUser.id : null;
-            var fetchUrl = this.apiBase + '/check-auth.php';
-            if (uid) fetchUrl += '?user_id=' + encodeURIComponent(uid);
+        // Step 2: Verify token with server
+        if (authToken) {
+            try {
+                var res = await fetch(this.apiBase + '/check-auth.php', {
+                    method: 'GET',
+                    headers: {
+                        'X-Auth-Token': authToken,
+                    },
+                    credentials: 'same-origin',
+                });
+                var data = await res.json();
 
-            var res = await fetch(fetchUrl, {
-                credentials: 'same-origin',
-            });
-            var data = await res.json();
-
-            if (data.success && data.logged_in) {
-                // Server confirms login — update localStorage with fresh data
-                localStorage.setItem('user', JSON.stringify(data.user));
-                this.updateUI(data.user);
-                return data.user;
-            }
-
-            // Server says "not logged in" — on Vercel this usually means
-            // the session was lost between containers, NOT that the user
-            // actually logged out. Trust localStorage unless explicitly logged out.
-            if (cachedUser) {
-                // Keep the cached user
+                if (data.success && data.logged_in && data.user) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    this.updateUI(data.user);
+                    return data.user;
+                } else {
+                    // Token expired or invalid — clear everything
+                    console.warn('Auth token expired');
+                    this.logout();
+                    return null;
+                }
+            } catch(e) {
+                console.error('Auth check failed:', e);
+                // If server unreachable, trust cache
                 return cachedUser;
             }
-
-            // No cached user and server says not logged in — genuinely logged out
-            this.updateUI(null);
-            return null;
-        } catch(e) {
-            console.error('Auth check failed:', e);
-            // If server is unreachable, trust localStorage
-            return cachedUser;
         }
+
+        // No token at all
+        if (!cachedUser) {
+            this.updateUI(null);
+        }
+        return cachedUser;
     },
 
-    // Save user to localStorage and update UI
-    setUser(user) {
+    // Save user and auth token
+    setUser(user, authToken) {
         if (user) {
             localStorage.setItem('user', JSON.stringify(user));
+            if (authToken) {
+                localStorage.setItem('auth_token', authToken);
+            }
             this.updateUI(user);
         }
     },
 
     // Clear user state (explicit logout)
     logout() {
+        var token = localStorage.getItem('auth_token');
         localStorage.removeItem('user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('searches_today');
         this.updateUI(null);
+
+        // Revoke token on server (best-effort, don't wait)
+        if (token) {
+            this.getCSRFToken().then(function(csrf) {
+                fetch(DalilApp.apiBase + '/auth.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        action: 'logout',
+                        auth_token: token,
+                        csrf_token: csrf,
+                    }),
+                }).catch(function() {});
+            });
+        }
     },
 
     // Update UI based on auth state
@@ -142,43 +166,59 @@ const DalilApp = {
         }
     },
 
-    // API POST with CSRF - auto-retries on CSRF failure
-    // Automatically includes user_id from localStorage for serverless auth
+    // Get auth token
+    getAuthToken() {
+        return localStorage.getItem('auth_token') || '';
+    },
+
+    // API POST with CSRF + auth token
     async post(endpoint, data, retries) {
         data = data || {};
         retries = retries !== undefined ? retries : 1;
 
-        // Get fresh CSRF token before each request
+        // Get fresh CSRF token
         var token = await this.getCSRFToken();
         data.csrf_token = token;
 
-        // Auto-include user_id from localStorage (Vercel serverless auth)
-        var user = this.getUser();
-        if (user && user.id && !data.user_id) {
-            data.user_id = user.id;
+        // Add auth token
+        var authToken = this.getAuthToken();
+        if (authToken && !data.auth_token) {
+            data.auth_token = authToken;
         }
 
         try {
+            var headers = {'Content-Type': 'application/json'};
+            if (authToken) {
+                headers['X-Auth-Token'] = authToken;
+            }
+
             var res = await fetch(this.apiBase + '/' + endpoint, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: headers,
                 credentials: 'same-origin',
                 body: JSON.stringify(data),
             });
             var result = await res.json();
 
-            // If CSRF invalid, get a new token and retry once
+            // If CSRF invalid, retry once
             if (!result.success && res.status === 403 && retries > 0) {
                 console.warn('CSRF token expired, refreshing and retrying...');
                 var newToken = await this.getCSRFToken();
                 data.csrf_token = newToken;
                 var retryRes = await fetch(this.apiBase + '/' + endpoint, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: headers,
                     credentials: 'same-origin',
                     body: JSON.stringify(data),
                 });
                 return retryRes.json();
+            }
+
+            // If auth_token expired, logout
+            if (!result.success && res.status === 401 && result.error === 'auth_required') {
+                console.warn('Auth token expired, logging out');
+                this.logout();
+                return result;
             }
 
             return result;
@@ -188,15 +228,17 @@ const DalilApp = {
         }
     },
 
-    // Initialize — show user immediately from cache, then verify in background
+    // Initialize — show cached user, then verify token with server
     async init() {
-        // Show user from localStorage immediately (no flicker)
         var cachedUser = this.getUser();
-        if (cachedUser) {
+        var authToken = localStorage.getItem('auth_token');
+
+        // Show user immediately from cache (no flicker)
+        if (cachedUser && authToken) {
             this.updateUI(cachedUser);
         }
 
-        // Get CSRF token and verify auth in parallel (non-blocking)
+        // Verify with server and get CSRF in parallel
         this.getCSRFToken();
         this.checkAuth();
     }
