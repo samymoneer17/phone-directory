@@ -395,7 +395,11 @@
             return;
         }
         // Check password complexity: uppercase, lowercase, number, special char
-        if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password) || !/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\`~]/.test(password)) {
+        var hasUpper = /[A-Z]/.test(password);
+        var hasLower = /[a-z]/.test(password);
+        var hasDigit = /[0-9]/.test(password);
+        var hasSpecial = /[^A-Za-z0-9]/.test(password);
+        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
             formErrorText.textContent = 'كلمة المرور يجب أن تحتوي على: حرف كبير، حرف صغير، رقم، وحرف خاص';
             formError.classList.add('show');
             return;
