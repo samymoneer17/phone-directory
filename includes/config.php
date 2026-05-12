@@ -18,15 +18,26 @@ define('SITE_DESCRIPTION', 'دليل هاتف دولي شامل للبحث عن 
 define('SITE_KEYWORDS', 'دليل هاتف, بحث عن رقم, معرفة صاحب الرقم, هاتف دولي, رقم مجهول, Yemen Phone Directory');
 
 // ============================================================
-// Path Configuration (محلي - قاعدة بيانات SQLite)
+// Vercel Detection
+// ============================================================
+define('IS_VERCEL', (bool) getenv('VERCEL'));
+
+// ============================================================
+// Path Configuration
 // ============================================================
 define('BASE_PATH', dirname(__DIR__));
 define('INCLUDES_PATH', BASE_PATH . '/includes');
-define('DATABASE_PATH', BASE_PATH . '/database');
+define('DATABASE_PATH', IS_VERCEL ? '/tmp' : BASE_PATH . '/database');
 define('DB_FILE', DATABASE_PATH . '/app.db');
 define('SCHEMA_FILE', BASE_PATH . '/database/schema.sql');
-define('UPLOADS_PATH', BASE_PATH . '/uploads');
-define('CACHE_PATH', BASE_PATH . '/cache');
+define('PUBLIC_PATH', BASE_PATH . '/public');
+define('UPLOADS_PATH', IS_VERCEL ? '/tmp/uploads' : BASE_PATH . '/uploads');
+define('CACHE_PATH', IS_VERCEL ? '/tmp/cache' : BASE_PATH . '/cache');
+
+// ============================================================
+// Site URL
+// ============================================================
+define('SITE_URL', getenv('VERCEL_URL') ? 'https://' . getenv('VERCEL_URL') : '/');
 
 // ============================================================
 // Session Configuration
@@ -34,7 +45,7 @@ define('CACHE_PATH', BASE_PATH . '/cache');
 define('SESSION_LIFETIME', 7200);       // 2 hours in seconds
 define('SESSION_NAME', 'phone_dir_sid');
 define('SESSION_COOKIE_HTTPONLY', true);
-define('SESSION_COOKIE_SECURE', false);  // Set to true if using HTTPS
+define('SESSION_COOKIE_SECURE', IS_VERCEL);  // HTTPS on Vercel
 define('SESSION_COOKIE_SAMESITE', 'Lax');
 define('REMEMBER_ME_LIFETIME', 2592000); // 30 days in seconds
 
@@ -164,10 +175,17 @@ define('JAIB_CURRENCY', 'YER');
 // ============================================================
 // Error Reporting
 // ============================================================
-error_reporting(0);
-ini_set('display_errors', '0');
-ini_set('log_errors', '1');
-ini_set('error_log', BASE_PATH . '/logs/error.log');
+if (IS_VERCEL) {
+    error_reporting(0);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    ini_set('error_log', '/tmp/error.log');
+} else {
+    error_reporting(0);
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    ini_set('error_log', BASE_PATH . '/logs/error.log');
+}
 
 // ============================================================
 // Timezone

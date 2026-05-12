@@ -2,10 +2,6 @@
 database/*.db
 database/*.sqlite
 
-# Build output
-dist/
-node_modules/
-
 # System files
 .DS_Store
 Thumbs.db
@@ -25,6 +21,10 @@ logs/
 # Temp
 tmp/
 temp/
+
+# Node (for local build testing only)
+node_modules/
+dist/
 
 # Test files
 test-all.php

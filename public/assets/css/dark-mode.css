@@ -1,0 +1,1270 @@
+/* ============================================
+   دليل الهاتف الدولي - International Phone Directory
+   Dark Mode Overrides - dark-mode.css
+   Version: 1.0.0
+   ============================================ */
+
+/* ============================================
+   1. BASE DARK MODE
+   ============================================ */
+html.dark {
+    color-scheme: dark;
+}
+
+html.dark body {
+    background-color: #0B1120;
+    color: #F1F5F9;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6 {
+    color: #F1F5F9;
+}
+
+html.dark a:hover {
+    color: #60A5FA;
+}
+
+html.dark p {
+    color: #CBD5E1;
+}
+
+html.dark ::selection {
+    background-color: #3B82F6;
+    color: #FFFFFF;
+}
+
+/* Scrollbar Dark */
+html.dark ::-webkit-scrollbar-track {
+    background: #1E293B;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748B;
+}
+
+/* Code */
+html.dark pre {
+    background: #1E293B;
+}
+
+html.dark code {
+    background: #1E293B;
+    color: #93C5FD;
+}
+
+/* ============================================
+   2. HEADER DARK
+   ============================================ */
+html.dark .header {
+    background: rgba(15, 23, 42, 0.8);
+    border-bottom-color: rgba(51, 65, 85, 0.5);
+}
+
+html.dark .header.scrolled {
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .header-logo {
+    color: #60A5FA;
+}
+
+html.dark .header-nav-link {
+    color: #94A3B8;
+}
+
+html.dark .header-nav-link:hover {
+    color: #60A5FA;
+    background-color: rgba(59, 130, 246, 0.08);
+}
+
+html.dark .header-nav-link::after {
+    background: linear-gradient(90deg, #3B82F6, #60A5FA);
+}
+
+html.dark .header-nav-link.active {
+    color: #60A5FA;
+}
+
+html.dark .header-theme-toggle {
+    color: #94A3B8;
+}
+
+html.dark .header-theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #60A5FA;
+}
+
+html.dark .header-user-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .header-user-name {
+    color: #E2E8F0;
+}
+
+html.dark .header-user-chevron {
+    color: #64748B;
+}
+
+html.dark .hamburger {
+    color: #94A3B8;
+}
+
+html.dark .hamburger:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* User Dropdown Dark */
+html.dark .user-dropdown {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(71, 85, 105, 0.5);
+    box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .user-dropdown-item {
+    color: #CBD5E1;
+}
+
+html.dark .user-dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #F1F5F9;
+}
+
+html.dark .user-dropdown-item.danger {
+    color: #F87171;
+}
+
+html.dark .user-dropdown-item.danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+}
+
+html.dark .user-dropdown-divider {
+    background-color: #334155;
+}
+
+/* ============================================
+   3. FOOTER DARK
+   ============================================ */
+html.dark .footer {
+    background: rgba(15, 23, 42, 0.7);
+    border-top-color: rgba(51, 65, 85, 0.5);
+}
+
+html.dark .footer-brand-logo {
+    color: #60A5FA;
+}
+
+html.dark .footer-brand-desc {
+    color: #64748B;
+}
+
+html.dark .footer-social-link {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #94A3B8;
+}
+
+html.dark .footer-social-link:hover {
+    background-color: #3B82F6;
+    color: #FFFFFF;
+}
+
+html.dark .footer-column h4 {
+    color: #F1F5F9;
+}
+
+html.dark .footer-column li a {
+    color: #94A3B8;
+}
+
+html.dark .footer-column li a:hover {
+    color: #60A5FA;
+}
+
+html.dark .footer-bottom {
+    border-top-color: #1E293B;
+}
+
+html.dark .footer-bottom p {
+    color: #475569;
+}
+
+html.dark .footer-bottom-links a {
+    color: #475569;
+}
+
+html.dark .footer-bottom-links a:hover {
+    color: #60A5FA;
+}
+
+/* ============================================
+   4. BUTTONS DARK
+   ============================================ */
+html.dark .btn-ghost {
+    color: #CBD5E1;
+}
+
+html.dark .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #F1F5F9;
+    box-shadow: none;
+}
+
+html.dark .btn-secondary {
+    color: #60A5FA;
+    border-color: #3B82F6;
+}
+
+html.dark .btn-secondary:hover {
+    background: #3B82F6;
+    color: #FFFFFF;
+}
+
+html.dark .btn-white {
+    background: #1E293B;
+    color: #60A5FA;
+    border: 1px solid #334155;
+    box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .btn-white:hover {
+    background: #334155;
+    color: #60A5FA;
+}
+
+html.dark .btn-loading.btn-secondary::after,
+html.dark .btn-loading.btn-ghost::after {
+    border-color: rgba(59, 130, 246, 0.3);
+    border-top-color: #3B82F6;
+}
+
+/* ============================================
+   5. CARDS DARK
+   ============================================ */
+html.dark .card {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-color: rgba(71, 85, 105, 0.4);
+}
+
+html.dark .card-hover:hover {
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .card-bordered {
+    border-color: #334155;
+}
+
+html.dark .card-bordered:hover {
+    border-color: #3B82F6;
+}
+
+html.dark .card-flat {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+html.dark .card-header {
+    border-bottom-color: #334155;
+}
+
+html.dark .card-title {
+    color: #F1F5F9;
+}
+
+html.dark .card-description {
+    color: #94A3B8;
+}
+
+html.dark .card-meta {
+    color: #475569;
+}
+
+html.dark .card-body p {
+    color: #94A3B8;
+}
+
+html.dark .card-footer {
+    border-top-color: #334155;
+}
+
+/* ============================================
+   6. FORMS DARK
+   ============================================ */
+html.dark .label {
+    color: #CBD5E1;
+}
+
+html.dark .input {
+    background-color: #1E293B;
+    border-color: #334155;
+    color: #F1F5F9;
+}
+
+html.dark .input::placeholder {
+    color: #475569;
+}
+
+html.dark .input:hover {
+    border-color: #475569;
+}
+
+html.dark .input:focus {
+    border-color: #3B82F6;
+    background-color: #1E293B;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+html.dark .input-icon .input-icon-icon {
+    color: #475569;
+}
+
+html.dark .select {
+    background-color: #1E293B;
+    border-color: #334155;
+    color: #F1F5F9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+html.dark .select:focus {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+html.dark .form-hint {
+    color: #475569;
+}
+
+html.dark .form-error {
+    color: #F87171;
+}
+
+html.dark .form-success {
+    color: #34D399;
+}
+
+/* Checkbox Dark */
+html.dark .checkbox-box {
+    background: #1E293B;
+    border-color: #475569;
+}
+
+html.dark .checkbox-label {
+    color: #CBD5E1;
+}
+
+/* Radio Dark */
+html.dark .radio-circle {
+    background: #1E293B;
+    border-color: #475569;
+}
+
+html.dark .radio-label {
+    color: #CBD5E1;
+}
+
+/* Password Toggle Dark */
+html.dark .password-toggle-btn {
+    color: #475569;
+}
+
+html.dark .password-toggle-btn:hover {
+    color: #94A3B8;
+}
+
+/* Password Strength Dark */
+html.dark .password-strength-bar {
+    background: #334155;
+}
+
+html.dark .password-strength-text {
+    color: #475569;
+}
+
+/* ============================================
+   7. TABLES DARK
+   ============================================ */
+html.dark .table-wrapper {
+    border-color: #334155;
+}
+
+html.dark .table thead {
+    background: linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%);
+}
+
+html.dark .table th {
+    color: #F1F5F9;
+}
+
+html.dark .table td {
+    border-bottom-color: #1E293B;
+    color: #CBD5E1;
+}
+
+html.dark .table tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.06);
+}
+
+html.dark .table-striped tbody tr:nth-child(even) {
+    background-color: rgba(30, 41, 59, 0.4);
+}
+
+html.dark .table-striped tbody tr:nth-child(even):hover {
+    background-color: rgba(59, 130, 246, 0.06);
+}
+
+/* ============================================
+   8. BADGES DARK
+   ============================================ */
+html.dark .badge-blue {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+}
+
+html.dark .badge-green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34D399;
+}
+
+html.dark .badge-red {
+    background: rgba(239, 68, 68, 0.15);
+    color: #F87171;
+}
+
+html.dark .badge-yellow {
+    background: rgba(245, 158, 11, 0.15);
+    color: #FBBF24;
+}
+
+html.dark .badge-purple {
+    background: rgba(139, 92, 246, 0.15);
+    color: #A78BFA;
+}
+
+html.dark .badge-gray {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94A3B8;
+}
+
+html.dark .badge-free {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34D399;
+}
+
+html.dark .badge-pro {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+}
+
+html.dark .badge-premium {
+    background: rgba(245, 158, 11, 0.15);
+    color: #FBBF24;
+}
+
+html.dark .badge-outline.badge-blue {
+    border-color: #3B82F6;
+    color: #60A5FA;
+}
+
+html.dark .badge-outline.badge-green {
+    border-color: #10B981;
+    color: #34D399;
+}
+
+html.dark .badge-outline.badge-red {
+    border-color: #EF4444;
+    color: #F87171;
+}
+
+/* ============================================
+   9. ALERTS DARK
+   ============================================ */
+html.dark .alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.2);
+    color: #34D399;
+}
+
+html.dark .alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #F87171;
+}
+
+html.dark .alert-warning {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.2);
+    color: #FBBF24;
+}
+
+html.dark .alert-info {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #60A5FA;
+}
+
+html.dark .alert-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================
+   10. PAGINATION DARK
+   ============================================ */
+html.dark .page-link {
+    background: #1E293B;
+    border-color: #334155;
+    color: #94A3B8;
+}
+
+html.dark .page-link:hover {
+    background: #334155;
+    border-color: #475569;
+    color: #60A5FA;
+}
+
+html.dark .page-active {
+    background: linear-gradient(135deg, #1E40AF, #3B82F6);
+    color: #FFFFFF;
+    border-color: transparent;
+}
+
+html.dark .page-ellipsis {
+    color: #475569;
+}
+
+/* ============================================
+   11. LOADING DARK
+   ============================================ */
+html.dark .spinner {
+    border-color: #334155;
+    border-top-color: #3B82F6;
+}
+
+html.dark .skeleton {
+    background: linear-gradient(90deg, #1E293B 25%, #334155 50%, #1E293B 75%);
+    background-size: 200% 100%;
+}
+
+html.dark .loading-overlay {
+    background: rgba(11, 17, 32, 0.85);
+}
+
+html.dark .loading-page-text {
+    color: #94A3B8;
+}
+
+/* ============================================
+   12. UTILITIES DARK
+   ============================================ */
+html.dark .text-primary { color: #60A5FA; }
+html.dark .text-secondary { color: #94A3B8; }
+html.dark .text-muted { color: #475569; }
+html.dark .text-dark { color: #F1F5F9; }
+
+html.dark .divider {
+    background: #1E293B;
+}
+
+html.dark .shadow-sm {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .shadow-md {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .shadow-lg {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .shadow-xl {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+/* Glassmorphism Dark */
+html.dark .glass {
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-color: rgba(71, 85, 105, 0.5);
+}
+
+html.dark .glass-dark {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(51, 65, 85, 0.6);
+}
+
+/* ============================================
+   13. SEARCH COMPONENTS DARK
+   ============================================ */
+html.dark .search-container {
+    background: linear-gradient(135deg, #0B1120 0%, #0F172A 50%, #1E293B 100%);
+}
+
+html.dark .search-container::before {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+}
+
+html.dark .search-container::after {
+    background: radial-gradient(circle, rgba(30, 64, 175, 0.04) 0%, transparent 70%);
+}
+
+html.dark .search-header p {
+    color: #94A3B8;
+}
+
+html.dark .search-box-inner {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(71, 85, 105, 0.5);
+    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .search-box-inner:focus-within {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12), 0 12px 40px -8px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .search-country-code {
+    border-left-color: #334155;
+}
+
+html.dark .search-country-dial {
+    color: #CBD5E1;
+}
+
+html.dark .search-input {
+    color: #F1F5F9;
+}
+
+html.dark .search-input::placeholder {
+    color: #475569;
+}
+
+html.dark .search-suggestions {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(71, 85, 105, 0.5);
+    box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .search-suggestion-item:hover,
+html.dark .search-suggestion-item.active {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .search-suggestion-icon {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+}
+
+html.dark .search-suggestion-text strong {
+    color: #F1F5F9;
+}
+
+html.dark .search-suggestion-text span {
+    color: #475569;
+}
+
+html.dark .search-results-count {
+    color: #94A3B8;
+}
+
+html.dark .search-results-count strong {
+    color: #60A5FA;
+}
+
+html.dark .result-card {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(71, 85, 105, 0.4);
+}
+
+html.dark .result-card:hover {
+    border-color: rgba(59, 130, 246, 0.3);
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.25);
+}
+
+html.dark .result-card-avatar {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+}
+
+html.dark .result-card-name {
+    color: #F1F5F9;
+}
+
+html.dark .result-card-phone {
+    color: #60A5FA;
+}
+
+html.dark .result-card-location {
+    color: #475569;
+}
+
+html.dark .result-action-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94A3B8;
+}
+
+html.dark .result-action-btn:hover {
+    background: #3B82F6;
+    color: #FFFFFF;
+}
+
+html.dark .search-empty-icon {
+    background: #1E293B;
+    color: #475569;
+}
+
+html.dark .search-empty h3 {
+    color: #94A3B8;
+}
+
+html.dark .search-empty p {
+    color: #475569;
+}
+
+/* Search Skeleton Dark */
+html.dark .search-skeleton-card {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(71, 85, 105, 0.3);
+}
+
+html.dark .search-skeleton-avatar {
+    background: linear-gradient(90deg, #1E293B 25%, #334155 50%, #1E293B 75%);
+    background-size: 200% 100%;
+}
+
+html.dark .search-skeleton-line {
+    background: linear-gradient(90deg, #1E293B 25%, #334155 50%, #1E293B 75%);
+    background-size: 200% 100%;
+}
+
+/* ============================================
+   14. HERO DARK
+   ============================================ */
+html.dark .hero {
+    background: linear-gradient(135deg, #0B1120 0%, #0F172A 50%, #1E293B 100%);
+}
+
+html.dark .hero::before {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+}
+
+html.dark .hero::after {
+    background: radial-gradient(circle, rgba(30, 64, 175, 0.04) 0%, transparent 70%);
+}
+
+html.dark .hero-badge {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #60A5FA;
+}
+
+html.dark .hero-subtitle {
+    color: #94A3B8;
+}
+
+html.dark .stats-bar-number {
+    color: #60A5FA;
+}
+
+html.dark .stats-bar-label {
+    color: #475569;
+}
+
+html.dark .stats-bar-divider {
+    background: #334155;
+}
+
+html.dark .hero-float-1,
+html.dark .hero-float-2 {
+    opacity: 0.1;
+}
+
+html.dark .hero-float-3,
+html.dark .hero-float-4 {
+    opacity: 0.08;
+}
+
+/* ============================================
+   15. AUTH PAGES DARK
+   ============================================ */
+html.dark .auth-container {
+    background: linear-gradient(135deg, #0B1120 0%, #0F172A 100%);
+}
+
+html.dark .auth-container::before {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 70%);
+}
+
+html.dark .auth-card {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(71, 85, 105, 0.4);
+    box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .auth-logo-text {
+    color: #60A5FA;
+}
+
+html.dark .auth-title {
+    color: #F1F5F9;
+}
+
+html.dark .auth-subtitle {
+    color: #94A3B8;
+}
+
+html.dark .auth-divider {
+    color: #475569;
+}
+
+html.dark .auth-divider::before,
+html.dark .auth-divider::after {
+    background: #334155;
+}
+
+html.dark .btn-google {
+    background: #1E293B;
+    border-color: #334155;
+    color: #E2E8F0;
+}
+
+html.dark .btn-google:hover {
+    background: #334155;
+    border-color: #475569;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+html.dark .auth-footer {
+    color: #94A3B8;
+    border-top-color: #334155;
+}
+
+html.dark .auth-footer a {
+    color: #60A5FA;
+}
+
+html.dark .auth-footer a:hover {
+    color: #93C5FD;
+}
+
+html.dark .auth-remember .checkbox-label {
+    color: #94A3B8;
+}
+
+html.dark .auth-forgot {
+    color: #60A5FA;
+}
+
+/* ============================================
+   16. DASHBOARD DARK
+   ============================================ */
+html.dark .sidebar {
+    background: rgba(15, 23, 42, 0.9);
+    border-left-color: rgba(51, 65, 85, 0.5);
+}
+
+html.dark .sidebar-title {
+    color: #475569;
+}
+
+html.dark .sidebar-link {
+    color: #94A3B8;
+}
+
+html.dark .sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #E2E8F0;
+}
+
+html.dark .sidebar-link.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60A5FA;
+}
+
+html.dark .sidebar-link.active::before {
+    background: linear-gradient(180deg, #3B82F6, #60A5FA);
+}
+
+html.dark .sidebar-divider {
+    background: #1E293B;
+}
+
+html.dark .dashboard-content {
+    background: #0B1120;
+}
+
+html.dark .dashboard-header h1 {
+    color: #F1F5F9;
+}
+
+html.dark .dashboard-header p {
+    color: #94A3B8;
+}
+
+/* Stat Cards Dark */
+html.dark .stat-card {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(71, 85, 105, 0.4);
+}
+
+html.dark .stat-card:hover {
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.25);
+}
+
+html.dark .stat-card-icon.blue {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+}
+
+html.dark .stat-card-icon.green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34D399;
+}
+
+html.dark .stat-card-icon.red {
+    background: rgba(239, 68, 68, 0.15);
+    color: #F87171;
+}
+
+html.dark .stat-card-icon.yellow {
+    background: rgba(245, 158, 11, 0.15);
+    color: #FBBF24;
+}
+
+html.dark .stat-card-icon.purple {
+    background: rgba(139, 92, 246, 0.15);
+    color: #A78BFA;
+}
+
+html.dark .stat-card-label {
+    color: #94A3B8;
+}
+
+html.dark .stat-card-value {
+    color: #F1F5F9;
+}
+
+html.dark .stat-card-change.up {
+    color: #34D399;
+    background: rgba(16, 185, 129, 0.15);
+}
+
+html.dark .stat-card-change.down {
+    color: #F87171;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+/* Chart Dark */
+html.dark .chart-placeholder {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(71, 85, 105, 0.4);
+}
+
+html.dark .chart-header h3 {
+    color: #F1F5F9;
+}
+
+html.dark .chart-tabs {
+    background: #1E293B;
+}
+
+html.dark .chart-tab {
+    color: #94A3B8;
+}
+
+html.dark .chart-tab.active {
+    background: #334155;
+    color: #F1F5F9;
+}
+
+html.dark .chart-body {
+    color: #475569;
+}
+
+/* Activity Dark */
+html.dark .activity-item {
+    border-bottom-color: #1E293B;
+}
+
+html.dark .activity-text {
+    color: #CBD5E1;
+}
+
+html.dark .activity-text strong {
+    color: #E2E8F0;
+}
+
+html.dark .activity-time {
+    color: #475569;
+}
+
+/* ============================================
+   17. PRICING DARK
+   ============================================ */
+html.dark .pricing-header h2 {
+    color: #F1F5F9;
+}
+
+html.dark .pricing-header p {
+    color: #94A3B8;
+}
+
+html.dark .plan-card {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(71, 85, 105, 0.4);
+}
+
+html.dark .plan-card:hover {
+    box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .plan-popular {
+    border-color: #3B82F6;
+    box-shadow: 0 8px 30px -6px rgba(59, 130, 246, 0.2);
+}
+
+html.dark .plan-popular:hover {
+    box-shadow: 0 24px 60px -12px rgba(59, 130, 246, 0.25);
+}
+
+html.dark .plan-name {
+    color: #F1F5F9;
+}
+
+html.dark .plan-description {
+    color: #475569;
+}
+
+html.dark .plan-price-amount {
+    color: #F1F5F9;
+}
+
+html.dark .plan-price-currency {
+    color: #94A3B8;
+}
+
+html.dark .plan-price-period {
+    color: #475569;
+}
+
+html.dark .plan-feature {
+    color: #CBD5E1;
+}
+
+html.dark .plan-feature svg {
+    color: #34D399;
+}
+
+html.dark .plan-feature.disabled {
+    color: #475569;
+}
+
+html.dark .plan-feature.disabled svg {
+    color: #334155;
+}
+
+html.dark .plan-header {
+    border-bottom-color: #1E293B;
+}
+
+/* ============================================
+   18. ADMIN PANEL DARK
+   ============================================ */
+html.dark .admin-sidebar {
+    background: linear-gradient(180deg, #0B1120 0%, #0F172A 100%);
+}
+
+html.dark .admin-sidebar-header {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-sidebar-title {
+    color: #F1F5F9;
+}
+
+html.dark .admin-sidebar-subtitle {
+    color: #475569;
+}
+
+html.dark .admin-sidebar-section-title {
+    color: #475569;
+}
+
+html.dark .admin-sidebar-link {
+    color: #94A3B8;
+}
+
+html.dark .admin-sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #E2E8F0;
+}
+
+html.dark .admin-sidebar-link.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60A5FA;
+}
+
+html.dark .admin-stat-card {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+html.dark .admin-stat-card:hover {
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .admin-stat-label {
+    color: #94A3B8;
+}
+
+html.dark .admin-stat-value {
+    color: #F1F5F9;
+}
+
+html.dark .admin-table-wrapper {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+html.dark .admin-toolbar {
+    border-bottom-color: #1E293B;
+}
+
+html.dark .admin-toolbar-title {
+    color: #F1F5F9;
+}
+
+html.dark .admin-toolbar-search .input {
+    background: #0F172A;
+    border-color: #334155;
+    color: #F1F5F9;
+}
+
+html.dark .admin-toolbar-search svg {
+    color: #475569;
+}
+
+/* ============================================
+   19. TOASTS DARK
+   ============================================ */
+html.dark .toast {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(71, 85, 105, 0.5);
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .toast-title {
+    color: #F1F5F9;
+}
+
+html.dark .toast-message {
+    color: #94A3B8;
+}
+
+html.dark .toast-close {
+    color: #475569;
+}
+
+html.dark .toast-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94A3B8;
+}
+
+html.dark .toast-success { border-right-color: #34D399; }
+html.dark .toast-error { border-right-color: #F87171; }
+html.dark .toast-warning { border-right-color: #FBBF24; }
+html.dark .toast-info { border-right-color: #60A5FA; }
+
+/* ============================================
+   20. MODALS DARK
+   ============================================ */
+html.dark .modal-overlay {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+html.dark .modal {
+    background: #1E293B;
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.5);
+}
+
+html.dark .modal-header h2 {
+    color: #F1F5F9;
+}
+
+html.dark .modal-header-close {
+    color: #94A3B8;
+}
+
+html.dark .modal-header-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #CBD5E1;
+}
+
+html.dark .modal-body {
+    color: #94A3B8;
+}
+
+/* ============================================
+   21. MOBILE MENU DARK
+   ============================================ */
+html.dark .mobile-overlay {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+html.dark .mobile-menu {
+    background: rgba(15, 23, 42, 0.98);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .mobile-menu-close {
+    color: #94A3B8;
+}
+
+html.dark .mobile-menu-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #F1F5F9;
+}
+
+html.dark .mobile-menu-link {
+    color: #CBD5E1;
+}
+
+html.dark .mobile-menu-link:hover,
+html.dark .mobile-menu-link.active {
+    background: rgba(59, 130, 246, 0.08);
+    color: #60A5FA;
+}
+
+html.dark .mobile-menu-divider {
+    background: #1E293B;
+}
+
+html.dark .mobile-menu-footer {
+    border-top-color: #1E293B;
+}
+
+/* ============================================
+   22. TRANSITION FOR THEME SWITCHING
+   ============================================ */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+    transition: background-color 0.3s ease,
+                color 0.3s ease,
+                border-color 0.3s ease,
+                box-shadow 0.3s ease,
+                fill 0.3s ease,
+                stroke 0.3s ease !important;
+}
