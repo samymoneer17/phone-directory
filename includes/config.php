@@ -7,88 +7,91 @@
  */
 
 defined('APP_STARTED') || define('APP_STARTED', true);
+// Guard: prevent re-definition warnings on Vercel
+if (defined('CONFIG_LOADED')) return;
+define('CONFIG_LOADED', true);
 
 // ============================================================
 // Site Configuration
 // ============================================================
-define('SITE_NAME', 'دليل الهاتف الدولي');
-define('SITE_NAME_EN', 'International Phone Directory');
-define('SITE_DESCRIPTION', 'دليل هاتف دولي شامل للبحث عن الأرقام والتعرف على هواتف مجهولة من جميع دول العالم');
-define('SITE_KEYWORDS', 'دليل هاتف, بحث عن رقم, معرفة صاحب الرقم, هاتف دولي, رقم مجهول, Yemen Phone Directory');
+defined('SITE_NAME') or define('SITE_NAME', 'دليل الهاتف الدولي');
+defined('SITE_NAME_EN') or define('SITE_NAME_EN', 'International Phone Directory');
+defined('SITE_DESCRIPTION') or define('SITE_DESCRIPTION', 'دليل هاتف دولي شامل للبحث عن الأرقام والتعرف على هواتف مجهولة من جميع دول العالم');
+defined('SITE_KEYWORDS') or define('SITE_KEYWORDS', 'دليل هاتف, بحث عن رقم, معرفة صاحب الرقم, هاتف دولي, رقم مجهول, Yemen Phone Directory');
 
 // ============================================================
 // Vercel Detection
 // ============================================================
-define('IS_VERCEL', (bool) getenv('VERCEL'));
+defined('IS_VERCEL') or define('IS_VERCEL', (bool) getenv('VERCEL'));
 
 // ============================================================
 // Path Configuration
 // ============================================================
-define('BASE_PATH', dirname(__DIR__));
-define('INCLUDES_PATH', BASE_PATH . '/includes');
-define('DATABASE_PATH', IS_VERCEL ? '/tmp' : BASE_PATH . '/database');
-define('DB_FILE', DATABASE_PATH . '/app.db');
-define('SCHEMA_FILE', BASE_PATH . '/database/schema.sql');
-define('PUBLIC_PATH', BASE_PATH . '/public');
-define('UPLOADS_PATH', IS_VERCEL ? '/tmp/uploads' : BASE_PATH . '/uploads');
-define('CACHE_PATH', IS_VERCEL ? '/tmp/cache' : BASE_PATH . '/cache');
+defined('BASE_PATH') or define('BASE_PATH', dirname(__DIR__));
+defined('INCLUDES_PATH') or define('INCLUDES_PATH', BASE_PATH . '/includes');
+defined('DATABASE_PATH') or define('DATABASE_PATH', IS_VERCEL ? '/tmp' : BASE_PATH . '/database');
+defined('DB_FILE') or define('DB_FILE', DATABASE_PATH . '/app.db');
+defined('SCHEMA_FILE') or define('SCHEMA_FILE', BASE_PATH . '/database/schema.sql');
+defined('PUBLIC_PATH') or define('PUBLIC_PATH', BASE_PATH . '/public');
+defined('UPLOADS_PATH') or define('UPLOADS_PATH', IS_VERCEL ? '/tmp/uploads' : BASE_PATH . '/uploads');
+defined('CACHE_PATH') or define('CACHE_PATH', IS_VERCEL ? '/tmp/cache' : BASE_PATH . '/cache');
 
 // ============================================================
 // Site URL
 // ============================================================
-define('SITE_URL', getenv('VERCEL_URL') ? 'https://' . getenv('VERCEL_URL') : '/');
+defined('SITE_URL') or define('SITE_URL', getenv('VERCEL_URL') ? 'https://' . getenv('VERCEL_URL') : '/');
 
 // ============================================================
 // Session Configuration
 // ============================================================
-define('SESSION_LIFETIME', 7200);       // 2 hours in seconds
-define('SESSION_NAME', 'phone_dir_sid');
-define('SESSION_COOKIE_HTTPONLY', true);
-define('SESSION_COOKIE_SECURE', IS_VERCEL);  // HTTPS on Vercel
-define('SESSION_COOKIE_SAMESITE', 'Lax');
-define('REMEMBER_ME_LIFETIME', 2592000); // 30 days in seconds
+defined('SESSION_LIFETIME') or define('SESSION_LIFETIME', 7200);
+defined('SESSION_NAME') or define('SESSION_NAME', 'phone_dir_sid');
+defined('SESSION_COOKIE_HTTPONLY') or define('SESSION_COOKIE_HTTPONLY', true);
+defined('SESSION_COOKIE_SECURE') or define('SESSION_COOKIE_SECURE', IS_VERCEL);
+defined('SESSION_COOKIE_SAMESITE') or define('SESSION_COOKIE_SAMESITE', 'Lax');
+defined('REMEMBER_ME_LIFETIME') or define('REMEMBER_ME_LIFETIME', 2592000);
 
 // ============================================================
 // Security Settings
 // ============================================================
-define('BCRYPT_COST', 12);
-define('RESET_TOKEN_LENGTH', 32);
-define('RESET_TOKEN_EXPIRY', 3600);      // 1 hour in seconds
-define('CSRF_TOKEN_LENGTH', 32);
-define('MAX_LOGIN_ATTEMPTS', 5);
-define('LOGIN_LOCKOUT_TIME', 900);       // 15 minutes in seconds
-define('PASSWORD_MIN_LENGTH', 8);
-define('PASSWORD_MAX_LENGTH', 128);
+defined('BCRYPT_COST') or define('BCRYPT_COST', 12);
+defined('RESET_TOKEN_LENGTH') or define('RESET_TOKEN_LENGTH', 32);
+defined('RESET_TOKEN_EXPIRY') or define('RESET_TOKEN_EXPIRY', 3600);
+defined('CSRF_TOKEN_LENGTH') or define('CSRF_TOKEN_LENGTH', 32);
+defined('MAX_LOGIN_ATTEMPTS') or define('MAX_LOGIN_ATTEMPTS', 5);
+defined('LOGIN_LOCKOUT_TIME') or define('LOGIN_LOCKOUT_TIME', 900);
+defined('PASSWORD_MIN_LENGTH') or define('PASSWORD_MIN_LENGTH', 8);
+defined('PASSWORD_MAX_LENGTH') or define('PASSWORD_MAX_LENGTH', 128);
 
 // ============================================================
 // Advanced Security Settings
 // ============================================================
-define('ADMIN_SESSION_TIMEOUT', 28800);   // 8 hours for admin sessions
-define('AUTO_BLOCK_VIOLATIONS', 20);      // Auto-block IP after 20 rate limit violations
-define('IP_BLOCK_DEFAULT_DURATION', 3600); // 1 hour default IP block
-define('MAX_UPLOAD_SIZE', 5242880);       // 5MB max upload
-define('HONEYPOT_FIELD_NAME', 'website'); // Hidden honeypot field name
+defined('ADMIN_SESSION_TIMEOUT') or define('ADMIN_SESSION_TIMEOUT', 28800);
+defined('AUTO_BLOCK_VIOLATIONS') or define('AUTO_BLOCK_VIOLATIONS', 20);
+defined('IP_BLOCK_DEFAULT_DURATION') or define('IP_BLOCK_DEFAULT_DURATION', 3600);
+defined('MAX_UPLOAD_SIZE') or define('MAX_UPLOAD_SIZE', 5242880);
+defined('HONEYPOT_FIELD_NAME') or define('HONEYPOT_FIELD_NAME', 'website');
 
 // ============================================================
 // Rate Limiting
 // ============================================================
-define('RATE_LIMIT_SEARCH', 30);         // 30 searches per minute
-define('RATE_LIMIT_LOGIN', 10);          // 10 login attempts per minute
-define('RATE_LIMIT_REGISTER', 5);        // 5 registrations per minute
-define('RATE_LIMIT_API', 60);            // 60 API requests per minute
-define('RATE_LIMIT_WINDOW', 60);         // 1 minute window
+defined('RATE_LIMIT_SEARCH') or define('RATE_LIMIT_SEARCH', 30);
+defined('RATE_LIMIT_LOGIN') or define('RATE_LIMIT_LOGIN', 10);
+defined('RATE_LIMIT_REGISTER') or define('RATE_LIMIT_REGISTER', 5);
+defined('RATE_LIMIT_API') or define('RATE_LIMIT_API', 60);
+defined('RATE_LIMIT_WINDOW') or define('RATE_LIMIT_WINDOW', 60);
 
 // ============================================================
 // Search Configuration
 // ============================================================
-define('FREE_SEARCH_LIMIT', 10);         // 10 searches per day for free users
-define('PRO_SEARCH_LIMIT', 100);         // 100 searches per day for pro users
-define('PREMIUM_SEARCH_LIMIT', 99999);   // Unlimited for premium
+defined('FREE_SEARCH_LIMIT') or define('FREE_SEARCH_LIMIT', 10);
+defined('PRO_SEARCH_LIMIT') or define('PRO_SEARCH_LIMIT', 100);
+defined('PREMIUM_SEARCH_LIMIT') or define('PREMIUM_SEARCH_LIMIT', 99999);
 
 // ============================================================
 // Plan Definitions & Pricing
 // ============================================================
-define('PLANS', [
+defined('PLANS') or define('PLANS', [
     'FREE' => [
         'name' => 'مجاني',
         'name_en' => 'Free',
@@ -151,19 +154,19 @@ define('PLANS', [
 // ============================================================
 
 // مفاتيح التشفير (AES-256-CBC)
-define('JAIB_FCM_KEY', 'cKaO7jFQ7JgS2G97QovObIlIK4MHMUcrXJzAxOj8WNI=');
-define('JAIB_FCM_IV', 'dbCnTfkJJPMYk09L5qMEgA==');
-define('JAIB_CLIENT_IV', '1T9yGplidi4rj0NAFdd3Gg==');
+defined('JAIB_FCM_KEY') or define('JAIB_FCM_KEY', 'cKaO7jFQ7JgS2G97QovObIlIK4MHMUcrXJzAxOj8WNI=');
+defined('JAIB_FCM_IV') or define('JAIB_FCM_IV', 'dbCnTfkJJPMYk09L5qMEgA==');
+defined('JAIB_CLIENT_IV') or define('JAIB_CLIENT_IV', '1T9yGplidi4rj0NAFdd3Gg==');
 
 // بيانات الجهاز الثابتة
-define('JAIB_DEVICE_ID', 'ffffffff-de16-649e-0000-000000000020@ea14e74f-aae2-47e3-b531-57cab72b1436');
-define('JAIB_SMS_CODE', '0qDUPl/hH8g');
-define('JAIB_TKN_NOT', 'e77Y_8f3TyC2BV7jZxEdR5:APA91bGAG_pizZVfBSIS77pKNPfwKkamj7rwmBtqrTih2urGz8YfpcHrEcyesJWDVH8JkpbNPTnUDSSTPdBoGZiD1mfNYLkMwU6I7ObvUCyFDNXMIdhKWZU');
-define('JAIB_INIT_VALUE', 'Cn9dxD4IEqmmTOu4+0VeX5hdY3c7m2WRPXHy93');
-define('JAIB_AUTH_HEADER', 'Basic SGF6bWlBZ2VudFNlcnZpY2U6QWRtaW4hI0AyNDU');
+defined('JAIB_DEVICE_ID') or define('JAIB_DEVICE_ID', 'ffffffff-de16-649e-0000-000000000020@ea14e74f-aae2-47e3-b531-57cab72b1436');
+defined('JAIB_SMS_CODE') or define('JAIB_SMS_CODE', '0qDUPl/hH8g');
+defined('JAIB_TKN_NOT') or define('JAIB_TKN_NOT', 'e77Y_8f3TyC2BV7jZxEdR5:APA91bGAG_pizZVfBSIS77pKNPfwKkamj7rwmBtqrTih2urGz8YfpcHrEcyesJWDVH8JkpbNPTnUDSSTPdBoGZiD1mfNYLkMwU6I7ObvUCyFDNXMIdhKWZU');
+defined('JAIB_INIT_VALUE') or define('JAIB_INIT_VALUE', 'Cn9dxD4IEqmmTOu4+0VeX5hdY3c7m2WRPXHy93');
+defined('JAIB_AUTH_HEADER') or define('JAIB_AUTH_HEADER', 'Basic SGF6bWlBZ2VudFNlcnZpY2U6QWRtaW4hI0AyNDU');
 
 // سيرفرات Jaib
-define('JAIB_SERVERS', [
+defined('JAIB_SERVERS') or define('JAIB_SERVERS', [
     'https://www.w-jaib.com:2074',
     'https://api.jaib.com.ye:1074',
     'https://api3.jaib.com.ye:9974',
@@ -173,12 +176,10 @@ define('JAIB_SERVERS', [
 ]);
 
 // إعدادات عامة
-define('JAIB_APP_VERSION', '446');
-define('JAIB_UPDATE_DATA', '20220329171');
-define('JAIB_TIMEOUT', 15); // seconds
-
-// العملة
-define('JAIB_CURRENCY', 'YER');
+defined('JAIB_APP_VERSION') or define('JAIB_APP_VERSION', '446');
+defined('JAIB_UPDATE_DATA') or define('JAIB_UPDATE_DATA', '20220329171');
+defined('JAIB_TIMEOUT') or define('JAIB_TIMEOUT', 15);
+defined('JAIB_CURRENCY') or define('JAIB_CURRENCY', 'YER');
 
 // ============================================================
 // Error Reporting

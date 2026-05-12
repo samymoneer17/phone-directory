@@ -13,7 +13,7 @@ defined('APP_STARTED') || require_once __DIR__ . '/config.php';
 // ============================================================
 // Country Codes Database (50+ countries)
 // ============================================================
-define('COUNTRY_CODES', [
+defined('COUNTRY_CODES') or define('COUNTRY_CODES', [
     // Middle East & North Africa
     '+967' => ['name' => 'اليمن', 'name_en' => 'Yemen', 'flag' => '🇾🇪', 'code' => 'YE'],
     '+966' => ['name' => 'السعودية', 'name_en' => 'Saudi Arabia', 'flag' => '🇸🇦', 'code' => 'SA'],

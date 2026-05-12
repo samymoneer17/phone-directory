@@ -8,14 +8,14 @@
  * Requires: admin authentication + CSRF verification + IP check
  */
 
+// Load dependencies FIRST (needed for functions like jsonResponse)
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/functions.php';
+
 // Ensure this is a POST request
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'message' => 'طريقة الطلب غير صالحة'], 405);
 }
-
-// Load dependencies
-require_once __DIR__ . '/../includes/config.php';
-require_once __DIR__ . '/../includes/functions.php';
 
 // Initial security check (IP blocked, payload size)
 Security::initialCheck();
