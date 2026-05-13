@@ -418,9 +418,17 @@ function sanitizeOutput(string $str): string
  */
 function jsonResponse($data, int $statusCode = 200): void
 {
+    // Clean any output buffer to ensure pure JSON response
+    // This prevents PHP warnings/notices from corrupting the JSON
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Pragma: no-cache');
 
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;

@@ -315,7 +315,7 @@
         <button class="back-to-top" id="backToTop"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
     </footer>
 
-    <script src="assets/js/dalil-app.js?v=5"></script>
+    <script src="assets/js/dalil-app.js?v=6"></script>
     <script>
     // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', function() {
@@ -438,13 +438,18 @@
 
         DalilApp.post('auth.php', {action: 'register', name: name, email: email, phone: phone, password: password})
             .then(function(data) {
+                console.log('[Register] API response:', data);
                 if (data.success) {
-                    if (data.user) {
-                        DalilApp.setUser(data.user, data.auth_token);
-                    }
-                    window.location.href = 'dashboard.html';
+                    // Save user data and token to localStorage
+                    DalilApp.setUser(data.user, data.auth_token);
+                    // Redirect to dashboard (with fallback)
+                    setTimeout(function() {
+                        window.location.href = 'dashboard.html';
+                    }, 300);
                 } else {
-                    formErrorText.textContent = data.message || 'حدث خطأ في إنشاء الحساب';
+                    // Show error — check both 'error' and 'message' fields
+                    var errorMsg = data.error || data.message || 'حدث خطأ في إنشاء الحساب. حاول مرة أخرى.';
+                    formErrorText.textContent = errorMsg;
                     formError.classList.add('show');
                     submitBtn.disabled = false;
                     submitText.textContent = 'إنشاء حساب';
@@ -452,6 +457,7 @@
                 }
             })
             .catch(function(err) {
+                console.error('[Register] Error:', err);
                 formErrorText.textContent = 'حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.';
                 formError.classList.add('show');
                 submitBtn.disabled = false;
@@ -463,10 +469,13 @@
     // Init
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
-        // If already logged in, redirect
+        // If already logged in, redirect to dashboard
         try {
             var user = DalilApp.getUser();
-            if (user) window.location.href = 'dashboard.html';
+            var token = DalilApp.getAuthToken();
+            if (user && token) {
+                window.location.href = 'dashboard.html';
+            }
         } catch(e) {}
     });
     </script>

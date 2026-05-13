@@ -10,6 +10,10 @@
  * Accepts both JSON and form-data POST requests
  */
 
+// Start output buffering IMMEDIATELY to catch any PHP warnings/notices
+// This ensures jsonResponse always sends pure JSON
+ob_start();
+
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/security.php';

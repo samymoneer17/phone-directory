@@ -3,18 +3,19 @@
  * Handles: auth state, CSRF tokens, API calls, user menu
  * 
  * Vercel Serverless Auth:
- * Uses database-backed auth tokens instead of PHP sessions.
+ * Uses JWT auth tokens instead of PHP sessions.
  * Token is stored in localStorage and sent with every API request.
  * Token expires after 2 hours — user must login again.
  */
 
-const DalilApp = {
+var DalilApp = {
     apiBase: '/api',
 
     // Get a fresh CSRF token from server
-    async getCSRFToken() {
+    getCSRFToken: function() {
+        var self = this;
         try {
-            var res = await fetch(this.apiBase + '/csrf.php', {
+            var res = await fetch(self.apiBase + '/csrf.php', {
                 credentials: 'same-origin',
             });
             if (!res.ok) return '';
@@ -30,12 +31,13 @@ const DalilApp = {
     },
 
     // Get cached CSRF token (no server request)
-    getCSRFTokenSync() {
+    getCSRFTokenSync: function() {
         return sessionStorage.getItem('csrf_token') || '';
     },
 
     // Check auth status using auth_token
-    async checkAuth() {
+    checkAuth: async function() {
+        var self = this;
         var cachedUser = this.getUser();
         var authToken = localStorage.getItem('auth_token');
 
@@ -55,6 +57,7 @@ const DalilApp = {
                     credentials: 'same-origin',
                 });
                 var data = await res.json();
+                console.log('[DalilApp] checkAuth response:', data);
 
                 if (data.success && data.logged_in && data.user) {
                     localStorage.setItem('user', JSON.stringify(data.user));
@@ -62,12 +65,12 @@ const DalilApp = {
                     return data.user;
                 } else {
                     // Token expired or invalid — clear everything
-                    console.warn('Auth token expired');
+                    console.warn('[DalilApp] Auth token expired or invalid');
                     this.logout();
                     return null;
                 }
             } catch(e) {
-                console.error('Auth check failed:', e);
+                console.error('[DalilApp] Auth check failed:', e);
                 // If server unreachable, trust cache
                 return cachedUser;
             }
@@ -80,23 +83,43 @@ const DalilApp = {
         return cachedUser;
     },
 
-    // Save user and auth token
-    setUser(user, authToken) {
-        if (user) {
-            localStorage.setItem('user', JSON.stringify(user));
-            if (authToken) {
-                localStorage.setItem('auth_token', authToken);
+    // Save user and auth token (safe — won't throw)
+    setUser: function(user, authToken) {
+        try {
+            if (user) {
+                localStorage.setItem('user', JSON.stringify(user));
+                if (authToken) {
+                    localStorage.setItem('auth_token', authToken);
+                }
+                this.updateUI(user);
             }
-            this.updateUI(user);
+        } catch(e) {
+            console.error('[DalilApp] setUser failed (storage issue):', e);
+            // Storage might be full or blocked — try clearing old data
+            try {
+                localStorage.removeItem('searches_today');
+                if (user) {
+                    localStorage.setItem('user', JSON.stringify(user));
+                    if (authToken) {
+                        localStorage.setItem('auth_token', authToken);
+                    }
+                }
+            } catch(e2) {
+                console.error('[DalilApp] setUser retry failed:', e2);
+            }
         }
     },
 
     // Clear user state (explicit logout)
-    logout() {
+    logout: function() {
         var token = localStorage.getItem('auth_token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('searches_today');
+        try {
+            localStorage.removeItem('user');
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('searches_today');
+        } catch(e) {
+            console.error('[DalilApp] logout clear failed:', e);
+        }
         this.updateUI(null);
 
         // Revoke token on server (best-effort, don't wait)
@@ -117,7 +140,7 @@ const DalilApp = {
     },
 
     // Update UI based on auth state
-    updateUI(user) {
+    updateUI: function(user) {
         var authBtns = document.getElementById('authBtns');
         var userMenu = document.getElementById('userMenu');
         var mobileAuthBtns = document.getElementById('mobileAuthBtns');
@@ -157,7 +180,7 @@ const DalilApp = {
     },
 
     // Get user from localStorage
-    getUser() {
+    getUser: function() {
         try {
             var u = localStorage.getItem('user');
             return u ? JSON.parse(u) : null;
@@ -167,12 +190,16 @@ const DalilApp = {
     },
 
     // Get auth token
-    getAuthToken() {
-        return localStorage.getItem('auth_token') || '';
+    getAuthToken: function() {
+        try {
+            return localStorage.getItem('auth_token') || '';
+        } catch(e) {
+            return '';
+        }
     },
 
     // API POST with CSRF + auth token
-    async post(endpoint, data, retries) {
+    post: async function(endpoint, data, retries) {
         data = data || {};
         retries = retries !== undefined ? retries : 1;
 
@@ -198,11 +225,22 @@ const DalilApp = {
                 credentials: 'same-origin',
                 body: JSON.stringify(data),
             });
-            var result = await res.json();
 
-            // If CSRF invalid, retry once
+            // Read response text first, then parse (safer than res.json())
+            var responseText = await res.text();
+            console.log('[DalilApp] POST ' + endpoint + ' status:' + res.status + ' body:' + responseText.substring(0, 200));
+
+            var result;
+            try {
+                result = JSON.parse(responseText);
+            } catch(parseErr) {
+                console.error('[DalilApp] JSON parse failed for ' + endpoint + ':', parseErr, 'Raw:', responseText.substring(0, 500));
+                return {success: false, error: '\u0641\u0634\u0644 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u062e\u0627\u062f\u0645'};
+            }
+
+            // If CSRF invalid, retry once with fresh token
             if (!result.success && res.status === 403 && retries > 0) {
-                console.warn('CSRF token expired, refreshing and retrying...');
+                console.warn('[DalilApp] CSRF token expired, refreshing and retrying...');
                 var newToken = await this.getCSRFToken();
                 data.csrf_token = newToken;
                 var retryRes = await fetch(this.apiBase + '/' + endpoint, {
@@ -211,27 +249,33 @@ const DalilApp = {
                     credentials: 'same-origin',
                     body: JSON.stringify(data),
                 });
-                return retryRes.json();
+                var retryText = await retryRes.text();
+                try {
+                    return JSON.parse(retryText);
+                } catch(e) {
+                    return {success: false, error: '\u0641\u0634\u0644 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u062e\u0627\u062f\u0645'};
+                }
             }
 
             // If auth_token expired, logout
             if (!result.success && res.status === 401 && result.error === 'auth_required') {
-                console.warn('Auth token expired, logging out');
+                console.warn('[DalilApp] Auth token expired, logging out');
                 this.logout();
                 return result;
             }
 
             return result;
         } catch(e) {
-            console.error('POST request failed:', e);
+            console.error('[DalilApp] POST request failed:', e);
             return {success: false, error: '\u0641\u0634\u0644 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u062e\u0627\u062f\u0645'};
         }
     },
 
     // Initialize — show cached user, then verify token with server
-    async init() {
+    init: function() {
         var cachedUser = this.getUser();
-        var authToken = localStorage.getItem('auth_token');
+        var authToken = null;
+        try { authToken = localStorage.getItem('auth_token'); } catch(e) {}
 
         // Show user immediately from cache (no flicker)
         if (cachedUser && authToken) {

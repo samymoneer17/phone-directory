@@ -6,6 +6,9 @@
  * ============================================================
  */
 
+// Start output buffering to ensure pure JSON responses
+ob_start();
+
 // Load dependencies FIRST (needed for constants and functions)
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/functions.php';

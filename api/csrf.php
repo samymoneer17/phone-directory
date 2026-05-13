@@ -7,6 +7,8 @@
  * No session storage needed — works on Vercel serverless
  */
 
+ob_start();
+
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/security.php';
