@@ -60,6 +60,11 @@ require_once __DIR__ . '/includes/header.php';
             </div>
             <div class="stats-bar-divider"></div>
             <div class="stats-bar-item">
+                <div class="stats-bar-number" data-target="3">0</div>
+                <div class="stats-bar-label">أدوات بحث</div>
+            </div>
+            <div class="stats-bar-divider"></div>
+            <div class="stats-bar-item">
                 <div class="stats-bar-number" data-target="50">0</div>
                 <div class="stats-bar-label">دولة مدعومة</div>
             </div>
@@ -95,8 +100,8 @@ require_once __DIR__ . '/includes/header.php';
                 <div style="width: 60px; height: 60px; margin: 0 auto 1.25rem; background: #D1FAE5; border-radius: 16px; display: flex; align-items: center; justify-content: center;">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 </div>
-                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">نتائج دقيقة</h3>
-                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin: 0;">قاعدة بيانات محدثة باستمرار تضمن لك الحصول على معلومات صحيحة وموثوقة</p>
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">3 أدوات بحث حقيقية</h3>
+                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin: 0;">اكواتس + لوليغرام + يمن فون بوك - نتائج حقيقية من مصادر متعددة</p>
             </div>
 
             <!-- Feature 3 -->
@@ -104,8 +109,8 @@ require_once __DIR__ . '/includes/header.php';
                 <div style="width: 60px; height: 60px; margin: 0 auto 1.25rem; background: #FEF3C7; border-radius: 16px; display: flex; align-items: center; justify-content: center;">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">حماية الخصوصية</h3>
-                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin: 0;">نحافظ على خصوصيتك وبياناتك الشخصية مع تشفير متقدم وحماية كاملة</p>
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">دفع آمن عبر جيب</h3>
+                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin: 0;">نظام دفع آمن وموثوق عبر محفظة جيب مع دعم الدفع الجزئي والتراكم</p>
             </div>
 
             <!-- Feature 4 -->
@@ -113,7 +118,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div style="width: 60px; height: 60px; margin: 0 auto 1.25rem; background: #EDE9FE; border-radius: 16px; display: flex; align-items: center; justify-content: center;">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 </div>
-                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">دعم متعدد الدول</h3>
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">جميع الدول</h3>
                 <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin: 0;">ندعم أكثر من 50 دولة حول العالم مع التعرف التلقائي على الدولة والمشغل</p>
             </div>
         </div>

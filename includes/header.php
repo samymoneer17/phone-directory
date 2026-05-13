@@ -661,6 +661,12 @@ $isActive = function ($page) use ($currentPage) {
                         الباقات
                     </a>
                 </li>
+                <li>
+                    <a href="<?php echo getPageUrl('payment.php'); ?>" class="nav-link <?php echo $isActive('payment.php'); ?>">
+                        <i data-lucide="credit-card" style="width:16px;height:16px;"></i>
+                        الدفع
+                    </a>
+                </li>
                 <?php if ($isAdmin): ?>
                 <li>
                     <a href="<?php echo getPageUrl('admin/dashboard.php'); ?>" class="nav-link <?php echo $isActive('dashboard.php'); ?>">
@@ -785,6 +791,10 @@ $isActive = function ($page) use ($currentPage) {
         <a href="<?php echo getPageUrl('plans.php'); ?>" class="mobile-nav-link <?php echo $isActive('plans.php'); ?>">
             <i data-lucide="crown" style="width:18px;height:18px;"></i>
             الباقات
+        </a>
+        <a href="<?php echo getPageUrl('payment.php'); ?>" class="mobile-nav-link <?php echo $isActive('payment.php'); ?>">
+            <i data-lucide="credit-card" style="width:18px;height:18px;"></i>
+            الدفع
         </a>
 
         <?php if ($isLoggedIn && $currentUser): ?>

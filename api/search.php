@@ -146,7 +146,9 @@ switch ($action) {
 
         $results = [];
         $total = 0;
+        $externalSources = [];
 
+        // البحث في قاعدة البيانات المحلية (النظام الأساسي)
         if ($type === 'NUMBER') {
             $lookup = performRealLookup($query, $countryInfo);
             $results = $lookup['results'];
@@ -155,6 +157,46 @@ switch ($action) {
             $lookup = searchByName($query);
             $results = $lookup['results'];
             $total = $lookup['total'];
+        }
+
+        // إضافة مصدر للنتائج المحلية
+        foreach ($results as &$r) {
+            if (!isset($r['source'])) {
+                $r['source'] = 'local';
+                $r['source_name'] = 'قاعدة البيانات';
+                $r['source_icon'] = '🗄️';
+            }
+        }
+        unset($r);
+
+        // البحث الخارجي عبر الأدوات الثلاث (AkWhats + Loligram + Yemen Phone Book)
+        try {
+            require_once __DIR__ . '/../includes/external-search.php';
+            $externalSearch = new ExternalSearch();
+            $externalResults = $externalSearch->searchAll($query, $type, $countryInfo);
+
+            if (!empty($externalResults['results'])) {
+                // دمج النتائج الخارجية مع النتائج المحلية
+                $seen = [];
+                foreach ($results as $existing) {
+                    $key = ($existing['phone'] ?? '') . '|' . ($existing['name'] ?? '');
+                    $seen[$key] = true;
+                }
+
+                foreach ($externalResults['results'] as $extResult) {
+                    $key = ($extResult['phone'] ?? '') . '|' . ($extResult['name'] ?? '');
+                    if (!isset($seen[$key])) {
+                        $seen[$key] = true;
+                        $results[] = $extResult;
+                    }
+                }
+
+                $total = count($results);
+            }
+
+            $externalSources = $externalResults['sources'] ?? [];
+        } catch (\Exception $e) {
+            error_log('External search failed (non-critical): ' . $e->getMessage());
         }
 
         // Save search to history (best-effort, may fail if DB doesn't persist on Vercel)
@@ -195,6 +237,11 @@ switch ($action) {
         // Attach country_info for NUMBER searches
         if ($type === 'NUMBER' && !empty($countryInfo) && isset($countryInfo['countryCode'])) {
             $response['country_info'] = $countryInfo;
+        }
+
+        // Attach external search sources info
+        if (!empty($externalSources)) {
+            $response['external_sources'] = $externalSources;
         }
 
         jsonResponse($response);

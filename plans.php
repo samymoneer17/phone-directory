@@ -142,7 +142,7 @@ $csrfToken = Security::getCSRFToken();
                     <?php if ($isLoggedIn && $currentUser['plan'] === 'PRO' && $subscription['active']): ?>
                     <div class="btn btn-primary" style="width: 100%; justify-content: center; cursor: default; opacity: 0.7;">الباقة الحالية</div>
                     <?php else: ?>
-                    <button type="button" class="btn btn-primary btn-lg" style="width: 100%; justify-content: center;" onclick="showPaymentForm('PRO')">
+                    <button type="button" class="btn btn-primary btn-lg" style="width: 100%; justify-content: center;" onclick="window.location.href='<?php echo getPageUrl('payment.php'); ?>?plan=PRO'">
                         اشترك الآن
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     </button>
@@ -173,7 +173,7 @@ $csrfToken = Security::getCSRFToken();
                     <?php if ($isLoggedIn && $currentUser['plan'] === 'PREMIUM' && $subscription['active']): ?>
                     <div class="btn btn-primary" style="width: 100%; justify-content: center; cursor: default; opacity: 0.7;">الباقة الحالية</div>
                     <?php else: ?>
-                    <button type="button" class="btn btn-secondary btn-lg" style="width: 100%; justify-content: center;" onclick="showPaymentForm('PREMIUM')">
+                    <button type="button" class="btn btn-secondary btn-lg" style="width: 100%; justify-content: center;" onclick="window.location.href='<?php echo getPageUrl('payment.php'); ?>?plan=PREMIUM'">
                         اشترك الآن
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     </button>

@@ -317,17 +317,62 @@ function performSearch(query, page) {
         if (data.results && data.results.length > 0) {
             actual.style.display = 'block';
             resultsCount.innerHTML = 'تم العثور على <strong>' + data.total + '</strong> نتيجة';
+
+            // Show external sources status
+            if (data.external_sources) {
+                var sourcesHtml = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">';
+                var sourceNames = {
+                    'akwhats': { name: 'اكواتس', icon: '💬' },
+                    'loligram': { name: 'لوليغرام', icon: '✈️' },
+                    'yemen_phonebook': { name: 'يمن فون بوك', icon: '📖' }
+                };
+                for (var srcKey in data.external_sources) {
+                    var srcData = data.external_sources[srcKey];
+                    var srcInfo = sourceNames[srcKey] || { name: srcKey, icon: '🔍' };
+                    var srcColor = srcData.found ? '#10B981' : '#94A3B8';
+                    var srcBg = srcData.found ? 'rgba(16,185,129,0.1)' : 'rgba(148,163,184,0.1)';
+                    sourcesHtml += '<span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.5rem;border-radius:9999px;font-size:0.7rem;font-weight:600;color:' + srcColor + ';background:' + srcBg + ';">' + srcInfo.icon + ' ' + srcInfo.name + (srcData.found ? ' ✓' : '') + '</span>';
+                }
+                sourcesHtml += '</div>';
+                resultsCount.innerHTML += sourcesHtml;
+            }
+
             resultsList.innerHTML = '';
             pagination.innerHTML = '';
 
             data.results.forEach(function(r) {
                 var card = document.createElement('div');
                 card.className = 'result-card';
+
+                // Source badge
+                var sourceBadge = '';
+                if (r.source_name) {
+                    var srcIcon = r.source_icon || '🔍';
+                    var srcBadgeColors = {
+                        'AkWhats': { bg: 'rgba(37,211,102,0.1)', color: '#25D366' },
+                        'Loligram': { bg: 'rgba(36,161,222,0.1)', color: '#24A1DE' },
+                        'YemenPhoneBook': { bg: 'rgba(239,68,68,0.1)', color: '#EF4444' },
+                        'local': { bg: 'var(--accent-light)', color: 'var(--accent)' },
+                    };
+                    var srcColor2 = (srcBadgeColors[r.source] || { bg: 'var(--accent-light)', color: 'var(--accent)' });
+                    sourceBadge = '<span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.4rem;border-radius:9999px;font-size:0.65rem;font-weight:700;color:' + srcColor2.color + ';background:' + srcColor2.bg + ';margin-right:0.5rem;">' + srcIcon + ' ' + r.source_name + '</span>';
+                }
+
+                // Extra info for external sources
+                var extraHtml = '';
+                if (r.extra) {
+                    if (r.extra.username) extraHtml += '<div style="font-size:0.75rem;color:var(--text-muted);">@' + r.extra.username + '</div>';
+                    if (r.extra.about) extraHtml += '<div style="font-size:0.75rem;color:var(--text-muted);">' + r.extra.about + '</div>';
+                    if (r.extra.is_business) extraHtml += '<span style="font-size:0.65rem;color:#F59E0B;background:rgba(245,158,11,0.1);padding:0.1rem 0.3rem;border-radius:4px;">حساب تجاري</span>';
+                    if (r.extra.is_premium) extraHtml += '<span style="font-size:0.65rem;color:#8B5CF6;background:rgba(139,92,246,0.1);padding:0.1rem 0.3rem;border-radius:4px;">Premium</span>';
+                }
+
                 card.innerHTML = '<div class="result-card-avatar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>' +
                     '<div class="result-card-info">' +
-                        '<div class="result-card-name">' + (r.name || 'غير معروف') + '</div>' +
+                        '<div class="result-card-name">' + (r.name || 'غير معروف') + sourceBadge + '</div>' +
                         '<div class="result-card-phone">' + (r.phone_hidden ? '••••••••••' : (r.phone || '')) + '</div>' +
-                        '<div class="result-card-location"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' + (r.country || '') + ' - ' + (r.operator || '') + '</div>' +
+                        '<div class="result-card-location"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' + (r.country || '') + (r.operator ? ' - ' + r.operator : '') + (r.city && r.city !== 'غير معروف' ? ' - ' + r.city : '') + '</div>' +
+                        extraHtml +
                     '</div>';
                 resultsList.appendChild(card);
             });
