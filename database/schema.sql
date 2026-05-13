@@ -65,6 +65,18 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     FOREIGN KEY (payment_id) REFERENCES payments(id)
 );
 
+-- User balances table (for partial payments)
+CREATE TABLE IF NOT EXISTS user_balances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    plan TEXT NOT NULL,
+    balance REAL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_user_balances_user ON user_balances(user_id);
+
 -- Activity logs table
 CREATE TABLE IF NOT EXISTS activity_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

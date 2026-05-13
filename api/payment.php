@@ -161,6 +161,25 @@ try {
             break;
 
         // =====================================================
+        // التحقق من الرصيد المتراكم
+        // =====================================================
+        case 'check-balance':
+            $plan = Security::sanitizeInput($input['plan'] ?? 'PRO');
+            if (!validatePlan($plan)) {
+                jsonResponse(['success' => false, 'error' => 'باقة غير صالحة']);
+            }
+            $jaib = new JaibPayment();
+            $balance = $jaib->getUserBalance($currentUser['id'], $plan);
+            jsonResponse([
+                'success'   => true,
+                'balance'   => $balance['balance'],
+                'plan'      => $plan,
+                'remaining' => $balance['remaining'],
+                'plan_price'=> PLANS[strtoupper($plan)]['price'] ?? 0,
+            ]);
+            break;
+
+        // =====================================================
         // إجراء غير معروف
         // =====================================================
         default:

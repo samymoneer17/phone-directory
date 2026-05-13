@@ -735,7 +735,7 @@ class JaibPayment
     }
 
     /**
-     * معالجة دفعة كاملة: تحقق + تفعيل اشتراك
+     * معالجة دفعة: تحقق + تفعيل اشتراك (يدعم الدفع الجزئي وتراكم الرصيد)
      */
     public function processPayment(int $userId, string $plan, string $transactionId): array
     {
@@ -768,12 +768,12 @@ class JaibPayment
 
         $planPrice = PLANS[$plan]['price'] ?? 0;
 
-        // إنشاء سجل دفع
+        // تسجيل الدفعة كمعلقة
         try {
             $paymentId = insert('payments', [
                 'user_id'        => $userId,
                 'plan'           => $plan,
-                'amount'         => $planPrice,
+                'amount'         => 0,
                 'currency'       => JAIB_CURRENCY,
                 'status'         => 'PENDING',
                 'transaction_id' => $transactionId,
@@ -786,40 +786,135 @@ class JaibPayment
             return ['success' => false, 'message' => 'حدث خطأ أثناء معالجة الدفع'];
         }
 
-        // التحقق من الدفع عبر Jaib
+        // تسجيل الدخول إلى جيب للتحقق من المعاملة
+        $loggedIn = false;
+        if ($this->loadSession() && $this->isSessionAlive()) {
+            $loggedIn = true;
+        } else {
+            $loginResult = $this->login(JAIB_ADMIN_PHONE, JAIB_ADMIN_PASSWORD);
+            $loggedIn = $loginResult['success'];
+        }
+
+        if (!$loggedIn) {
+            update('payments', ['status' => 'REJECTED'], 'id = :id', [':id' => $paymentId]);
+            return ['success' => false, 'message' => 'فشل الاتصال بخدمة التحقق من المعاملات. حاول مرة أخرى لاحقاً.'];
+        }
+
+        // استعلام المعاملة
         $verification = $this->verifyPayment($transactionId);
 
         if (!$verification['success']) {
+            update('payments', ['status' => 'REJECTED'], 'id = :id', [':id' => $paymentId]);
             Security::logActivity($userId, 'payment_api_error', 'Jaib error: ' . $transactionId);
             return ['success' => false, 'message' => $verification['message']];
         }
 
-        if (!$verification['verified']) {
+        if (!$verification['verified'] || $verification['amount'] === null) {
             update('payments', ['status' => 'REJECTED'], 'id = :id', [':id' => $paymentId]);
             Security::logActivity($userId, 'payment_rejected', 'Rejected: ' . $transactionId);
-            return ['success' => false, 'message' => $verification['message']];
+            return ['success' => false, 'message' => 'لم يتم التحقق من الدفع. تأكد من أنك حولت المبلغ إلى حساب رقم ' . JAIB_RECEIVER_ACCOUNT];
         }
 
-        // تفعيل الاشتراك
+        $paidAmount = (float) $verification['amount'];
+        update('payments', ['amount' => $paidAmount], 'id = :id', [':id' => $paymentId]);
+
+        // === نظام الدفع الجزئي ===
+
+        // الحصول على الرصيد المتراكم
         try {
-            db()->beginTransaction();
-
-            update('payments', ['status' => 'APPROVED'], 'id = :id', [':id' => $paymentId]);
-            $subscription = $this->activateSubscription($userId, $plan, (int)$paymentId);
-
-            db()->commit();
-
-            Security::logActivity($userId, 'payment_success', "{$plan} - {$planPrice} " . JAIB_CURRENCY . " - {$transactionId}");
-
-            return [
-                'success'      => true,
-                'message'      => 'تم تفعيل الاشتراك بنجاح! مرحباً بك في باقة ' . PLANS[$plan]['name'],
-                'subscription' => $subscription,
-            ];
+            $balanceRow = fetch(
+                "SELECT * FROM user_balances WHERE user_id = :uid AND plan = :plan LIMIT 1",
+                [':uid' => $userId, ':plan' => $plan]
+            );
+            $currentBalance = $balanceRow ? (float) $balanceRow['balance'] : 0.0;
         } catch (\Exception $e) {
-            db()->rollback();
-            error_log('Payment processing failed: ' . $e->getMessage());
-            return ['success' => false, 'message' => 'حدث خطأ أثناء تفعيل الاشتراك'];
+            $currentBalance = 0.0;
+        }
+
+        $totalAvailable = $currentBalance + $paidAmount;
+
+        if ($totalAvailable >= $planPrice) {
+            // === الدفع كامل ===
+            try {
+                db()->beginTransaction();
+
+                update('payments', ['status' => 'APPROVED'], 'id = :id', [':id' => $paymentId]);
+
+                // مسح الرصيد المتراكم
+                try {
+                    if ($balanceRow) {
+                        update('user_balances', ['balance' => 0, 'updated_at' => date('Y-m-d H:i:s')],
+                            'user_id = :uid AND plan = :plan',
+                            [':uid' => $userId, ':plan' => $plan]);
+                    }
+                } catch (\Exception $e) {}
+
+                $subscription = $this->activateSubscription($userId, $plan, (int) $paymentId);
+                db()->commit();
+
+                Security::logActivity($userId, 'payment_success', "{$plan} - {$paidAmount} + {$currentBalance} " . JAIB_CURRENCY . " = {$planPrice} - {$transactionId}");
+
+                return [
+                    'success'      => true,
+                    'message'      => 'تم تفعيل الاشتراك بنجاح! مرحباً بك في باقة ' . PLANS[$plan]['name'],
+                    'subscription' => $subscription,
+                ];
+            } catch (\Exception $e) {
+                db()->rollback();
+                error_log('Payment processing failed: ' . $e->getMessage());
+                return ['success' => false, 'message' => 'حدث خطأ أثناء تفعيل الاشتراك'];
+            }
+        } else {
+            // === دفع جزئي ===
+            $remaining = $planPrice - $totalAvailable;
+
+            try {
+                update('payments', ['status' => 'PARTIAL'], 'id = :id', [':id' => $paymentId]);
+
+                if ($balanceRow) {
+                    update('user_balances', [
+                        'balance'    => $totalAvailable,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ], 'user_id = :uid AND plan = :plan', [':uid' => $userId, ':plan' => $plan]);
+                } else {
+                    // Create balance record - need to handle UNIQUE constraint
+                    try {
+                        insert('user_balances', [
+                            'user_id'    => $userId,
+                            'plan'       => $plan,
+                            'balance'    => $totalAvailable,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    } catch (\Exception $e) {
+                        // UNIQUE violation - update instead
+                        if (strpos($e->getMessage(), 'UNIQUE') !== false) {
+                            update('user_balances', [
+                                'balance'    => $totalAvailable,
+                                'updated_at' => date('Y-m-d H:i:s'),
+                            ], 'user_id = :uid AND plan = :plan', [':uid' => $userId, ':plan' => $plan]);
+                        } else {
+                            throw $e;
+                        }
+                    }
+                }
+
+                Security::logActivity($userId, 'partial_payment', "PARTIAL {$plan}: paid {$paidAmount} + existing {$currentBalance} = {$totalAvailable}/{$planPrice} - remaining {$remaining}");
+
+                return [
+                    'success'        => true,
+                    'message'        => 'تم استلام الدفع الجزئي بنجاح! المبلغ المتبقي: ' . number_format($remaining, 0) . ' ' . JAIB_CURRENCY,
+                    'partial'        => true,
+                    'paid_amount'    => $paidAmount,
+                    'previous_balance' => $currentBalance,
+                    'total_balance'  => $totalAvailable,
+                    'plan_price'     => $planPrice,
+                    'remaining'      => $remaining,
+                ];
+            } catch (\Exception $e) {
+                error_log('Partial payment failed: ' . $e->getMessage());
+                return ['success' => false, 'message' => 'حدث خطأ أثناء تسجيل الدفع الجزئي'];
+            }
         }
     }
 
@@ -907,6 +1002,29 @@ class JaibPayment
     {
         $plan = strtoupper($plan);
         return isset(PLANS[$plan]) ? (float)PLANS[$plan]['price'] : 0.0;
+    }
+
+    /**
+     * الحصول على رصيد المستخدم المتراكم لباقة معينة
+     */
+    public function getUserBalance(int $userId, string $plan): array
+    {
+        $plan = strtoupper($plan);
+        try {
+            $row = fetch(
+                "SELECT * FROM user_balances WHERE user_id = :uid AND plan = :plan LIMIT 1",
+                [':uid' => $userId, ':plan' => $plan]
+            );
+            if ($row) {
+                return [
+                    'success' => true,
+                    'balance' => (float) $row['balance'],
+                    'plan'    => $plan,
+                    'remaining' => max(0, (PLANS[$plan]['price'] ?? 0) - (float) $row['balance']),
+                ];
+            }
+        } catch (\Exception $e) {}
+        return ['success' => true, 'balance' => 0, 'plan' => $plan, 'remaining' => PLANS[$plan]['price'] ?? 0];
     }
 
     /**

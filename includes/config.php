@@ -188,6 +188,14 @@ defined('JAIB_UPDATE_DATA') or define('JAIB_UPDATE_DATA', '20220329171');
 defined('JAIB_TIMEOUT') or define('JAIB_TIMEOUT', 15);
 defined('JAIB_CURRENCY') or define('JAIB_CURRENCY', 'YER');
 
+// حساب جيب المستقبل (الذي يحول عليه المستخدمون)
+defined('JAIB_RECEIVER_ACCOUNT') or define('JAIB_RECEIVER_ACCOUNT', '523416');
+defined('JAIB_RECEIVER_NAME') or define('JAIB_RECEIVER_NAME', 'دليل الهاتف الدولي');
+
+// بيانات تسجيل دخول جيب للتحقق من المعاملات
+defined('JAIB_ADMIN_PHONE') or define('JAIB_ADMIN_PHONE', '777189801');
+defined('JAIB_ADMIN_PASSWORD') or define('JAIB_ADMIN_PASSWORD', '700181334');
+
 // ============================================================
 // Error Reporting
 // ============================================================

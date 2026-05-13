@@ -158,6 +158,20 @@ class Database
         } catch (\PDOException $e) {
             // Column already exists - ignore
         }
+
+        // Migrate: add user_balances table if not exists
+        try {
+            $this->pdo->exec("CREATE TABLE IF NOT EXISTS user_balances (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                plan TEXT NOT NULL,
+                balance REAL DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )");
+        } catch (\PDOException $e) {
+            error_log('user_balances table creation error: ' . $e->getMessage());
+        }
     }
 
     /**

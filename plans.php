@@ -205,12 +205,20 @@ $csrfToken = Security::getCSRFToken();
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                             <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">الدفع عبر محفظة جيب</span>
                         </div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.8;">
+                            <div style="background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.75rem; text-align: center;">
+                                <span style="color: var(--text-secondary); font-size: 0.75rem;">حوّل المبلغ إلى هذا الرقم:</span><br>
+                                <strong style="font-size: 1.25rem; color: var(--accent); letter-spacing: 1px; direction: ltr; display: inline-block;"><?php echo JAIB_RECEIVER_ACCOUNT; ?></strong>
+                            </div>
                             1. افتح تطبيق محفظة جيب<br>
-                            2. ابحث عن <strong style="color: var(--text-primary);">دليل الهاتف الدولي</strong><br>
-                            3. أدخل المبلغ <strong id="paymentAmount" style="color: var(--text-primary);"></strong> ر.ي<br>
-                            4. أكمل عملية الدفع<br>
-                            5. أدخل رقم العملية في الحقل أدناه
+                            2. اذهب لقسم التحويل<br>
+                            3. أدخل رقم المستقبل: <strong style="color: var(--text-primary); direction: ltr; display: inline-block;"><?php echo JAIB_RECEIVER_ACCOUNT; ?></strong><br>
+                            4. أدخل المبلغ <strong id="paymentAmount" style="color: var(--text-primary);"></strong> ر.ي<br>
+                            5. أكمل عملية التحويل<br>
+                            6. أدخل رقم العملية في الحقل أدناه
+                        </div>
+                        <div style="background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 0.5rem; padding: 0.6rem; margin-top: 0.5rem; font-size: 0.75rem; color: #92400E;">
+                            💡 يمكنك الدفع على دفعات! إذا لم يكن لديك المبلغ الكامل، ادفع ما تستطيع وسيتجمع الرصيد تلقائياً.
                         </div>
                     </div>
 
