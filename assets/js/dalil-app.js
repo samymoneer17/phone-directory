@@ -12,7 +12,7 @@ var DalilApp = {
     apiBase: '/api',
 
     // Get a fresh CSRF token from server
-    getCSRFToken: function() {
+    getCSRFToken: async function() {
         var self = this;
         try {
             var res = await fetch(self.apiBase + '/csrf.php', {
