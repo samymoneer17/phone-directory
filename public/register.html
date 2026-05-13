@@ -315,7 +315,20 @@
         <button class="back-to-top" id="backToTop"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
     </footer>
 
-    <script src="assets/js/dalil-app.js?v=7"></script>
+    <script src="assets/js/dalil-app-v7.js"></script>
+    <script>
+    // Fallback auth save — works even if dalil-app.js hasn't loaded
+    function saveAuthData(user, token) {
+        try {
+            if (user) localStorage.setItem('user', JSON.stringify(user));
+            if (token) localStorage.setItem('auth_token', token);
+            // Also try DalilApp.setUser if available
+            if (typeof DalilApp !== 'undefined' && typeof DalilApp.setUser === 'function') {
+                DalilApp.setUser(user, token);
+            }
+        } catch(e) { console.error('saveAuthData failed:', e); }
+    }
+    </script>
     <script>
     // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', function() {
@@ -441,7 +454,7 @@
                 console.log('[Register] API response:', data);
                 if (data.success) {
                     // Save user data and token to localStorage
-                    DalilApp.setUser(data.user, data.auth_token);
+                    saveAuthData(data.user, data.auth_token);
                     // Redirect to dashboard (with fallback)
                     setTimeout(function() {
                         window.location.href = 'dashboard.html';
