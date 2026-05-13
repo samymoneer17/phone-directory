@@ -6,9 +6,9 @@
  * ============================================================
  */
 
-$pageTitle = 'إعدادات الحساب - ' . SITE_NAME;
-
 require_once __DIR__ . '/includes/config.php';
+
+$pageTitle = 'إعدادات الحساب - ' . SITE_NAME;
 
 // Require authentication
 Auth::requireAuth();

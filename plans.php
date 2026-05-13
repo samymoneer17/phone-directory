@@ -6,9 +6,9 @@
  * ============================================================
  */
 
-$pageTitle = 'الباقات والأسعار - ' . SITE_NAME;
-
 require_once __DIR__ . '/includes/config.php';
+
+$pageTitle = 'الباقات والأسعار - ' . SITE_NAME;
 require_once __DIR__ . '/includes/header.php';
 
 $selectedPlan = $_GET['plan'] ?? '';

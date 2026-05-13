@@ -6,12 +6,12 @@
  * ============================================================
  */
 
+require_once __DIR__ . '/includes/config.php';
+
 $pageTitle = 'البحث - ' . SITE_NAME;
 $searchQuery = $_GET['q'] ?? '';
 $searchType = $_GET['type'] ?? 'NUMBER';
 $page = (int) ($_GET['page'] ?? 1);
-
-require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/header.php';
 
 $todaySearchCount = 0;

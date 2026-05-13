@@ -6,9 +6,9 @@
  * ============================================================
  */
 
-$pageTitle = 'نسيت كلمة المرور - ' . SITE_NAME;
-
 require_once __DIR__ . '/includes/config.php';
+
+$pageTitle = 'نسيت كلمة المرور - ' . SITE_NAME;
 require_once __DIR__ . '/includes/header.php';
 
 // Redirect if already logged in
