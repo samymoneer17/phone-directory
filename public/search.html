@@ -122,15 +122,33 @@
         .results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border-color)}
         .results-header h2{font-size:1.25rem;font-weight:700;color:var(--text-primary)}
         .results-header span{font-size:.875rem;color:var(--text-muted)}
-        .result-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:1.25rem 1.5rem;margin-bottom:.75rem;transition:var(--transition);display:flex;align-items:center;gap:1rem}
+        .country-banner{display:flex;align-items:center;gap:.75rem;padding:.875rem 1.25rem;background:var(--accent-light);border:1px solid rgba(16,185,129,.2);border-radius:var(--radius-md);margin-bottom:1.25rem;font-size:.95rem;font-weight:600;color:var(--text-primary)}
+        .country-banner-flag{font-size:1.5rem}
+        .country-banner-label{color:var(--text-secondary);font-weight:400;font-size:.875rem;margin-right:.25rem}
+        .result-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:1.25rem 1.5rem;margin-bottom:.75rem;transition:var(--transition);display:flex;align-items:flex-start;gap:1rem}
         .result-card:hover{border-color:var(--accent);box-shadow:var(--shadow-md)}
+        .result-card-right{display:flex;flex-direction:column;align-items:center;gap:.5rem;flex-shrink:0;padding-top:.125rem}
         .result-icon{width:48px;height:48px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-        .result-info{flex:1}
-        .result-name{font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:.25rem}
-        .result-number{font-size:.9rem;color:var(--text-secondary);direction:ltr;text-align:right;font-family:'Inter',monospace}
-        .result-meta{display:flex;gap:.75rem;margin-top:.5rem}
+        .result-icon.landline{background:rgba(59,130,246,.1);color:#3b82f6}
+        .result-icon.voip{background:rgba(168,85,247,.1);color:#a855f7}
+        .result-icon.unknown{background:rgba(148,163,184,.1);color:#94a3b8}
+        .result-flag{font-size:1.35rem;line-height:1}
+        .result-info{flex:1;min-width:0}
+        .result-name{font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:.25rem;display:flex;align-items:center;gap:.5rem}
+        .result-name-badge{display:inline-flex;align-items:center;padding:.1rem .45rem;border-radius:9999px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px;background:rgba(16,185,129,.12);color:var(--accent)}
+        .result-phone-display{font-size:1.15rem;font-weight:700;color:var(--text-primary);direction:ltr;text-align:right;font-family:'Inter',monospace;letter-spacing:.3px;margin-bottom:.375rem}
+        .result-detail{display:flex;align-items:center;gap:.375rem;font-size:.85rem;color:var(--text-secondary);margin-bottom:.25rem}
+        .result-detail svg{width:14px;height:14px;color:var(--text-muted);flex-shrink:0}
+        .result-detail-icon{flex-shrink:0;color:var(--text-muted);font-size:.85rem}
+        .result-meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.625rem}
         .result-tag{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:600;background:var(--accent-light);color:var(--accent)}
+        .result-tag.carrier{background:rgba(245,158,11,.1);color:#f59e0b}
+        .result-tag.type-mobile{background:rgba(16,185,129,.1);color:#10b981}
+        .result-tag.type-landline{background:rgba(59,130,246,.1);color:#3b82f6}
+        .result-tag.type-voip{background:rgba(168,85,247,.1);color:#a855f7}
         .result-tag.location{background:rgba(59,130,246,.1);color:#3b82f6}
+        .result-valid{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:600;background:rgba(16,185,129,.1);color:#10b981}
+        .result-invalid{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:600;background:rgba(239,68,68,.1);color:#ef4444}
         .empty-state{text-align:center;padding:4rem 2rem}
         .empty-state-icon{width:80px;height:80px;margin:0 auto 1.5rem;background:var(--bg-secondary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-muted)}
         .empty-state h3{font-size:1.25rem;font-weight:700;color:var(--text-primary);margin-bottom:.5rem}
@@ -150,8 +168,10 @@
             .main-content{margin-top:64px}
             .footer-grid{grid-template-columns:1fr;gap:2rem}
             .footer-bottom{flex-direction:column;text-align:center}
-            .result-card{flex-direction:column;align-items:flex-start;text-align:right}
+            .result-card{flex-direction:column;align-items:flex-start;gap:.875rem}
+            .result-card-right{flex-direction:row;gap:.75rem}
             .result-meta{flex-wrap:wrap}
+            .country-banner{flex-direction:column;text-align:center;gap:.375rem}
         }
     </style>
 </head>
@@ -424,9 +444,10 @@
 
             if (data.success && data.results && data.results.length > 0) {
                 document.getElementById('resultsArea').style.display = 'block';
-                document.getElementById('resultsTitle').textContent = '\u0646\u062a\u0627\u0626\u062c \u0627\u0644\u0628\u062d\u062b \u0639\u0646 "' + query + '"';
+                var titlePrefix = currentType === 'name' ? '\u0646\u062a\u0627\u0626\u062c \u0627\u0644\u0628\u062d\u062b \u0639\u0646 \u0627\u0633\u0645' : '\u0646\u062a\u0627\u0626\u062c \u0627\u0644\u0628\u062d\u062b \u0639\u0646 \u0631\u0642\u0645';
+                document.getElementById('resultsTitle').textContent = titlePrefix + ' "' + query + '"';
                 document.getElementById('resultsCount').textContent = data.total + ' \u0646\u062a\u064a\u062c\u0629';
-                renderResults(data.results);
+                renderResults(data.results, data.country_info);
 
                 // Update search counter in localStorage
                 if (data.count) {
@@ -465,23 +486,121 @@
         });
     }
 
-    function renderResults(results) {
+    function getPhoneTypeIcon(type) {
+        switch((type || '').toLowerCase()) {
+            case 'mobile': return 'smartphone';
+            case 'landline': case 'fixed': return 'building-2';
+            case 'voip': return 'globe';
+            default: return 'phone';
+        }
+    }
+
+    function getPhoneTypeClass(type) {
+        switch((type || '').toLowerCase()) {
+            case 'landline': case 'fixed': return 'landline';
+            case 'voip': return 'voip';
+            case 'mobile': return '';
+            default: return 'unknown';
+        }
+    }
+
+    function getOperatorColor(operator) {
+        if (!operator) return '';
+        var colors = {
+            'يمن موبايل': '#e74c3c',
+            'Yemen Mobile': '#e74c3c',
+            'سبأفون': '#3498db',
+            'SabaFon': '#3498db',
+            'يمن نت': '#2ecc71',
+            'Hi Net': '#2ecc71',
+            'wi-tribe': '#9b59b6',
+            'اتصالات': '#f39c12',
+            'stc': '#6c3ec7',
+            'mobily': '#e0115f',
+            'zain': '#005c97',
+            'ooredoo': '#ed1c24'
+        };
+        for (var key in colors) {
+            if (operator.indexOf(key) !== -1) return colors[key];
+        }
+        return '';
+    }
+
+    function renderCountryBanner(countryInfo) {
+        if (!countryInfo) return '';
+        return '<div class="country-banner">' +
+            '<span class="country-banner-flag">' + (countryInfo.flag || '') + '</span>' +
+            '<span>' +
+                '<span class="country-banner-label">نتائج البحث عن </span>' +
+                (countryInfo.countryCode || '') + (countryInfo.nationalNumber || '') +
+                ' | ' + (countryInfo.flag || '') + ' ' + (countryInfo.countryName || countryInfo.countryNameEn || '') +
+            '</span>' +
+        '</div>';
+    }
+
+    function renderResults(results, countryInfo) {
         var html = '';
+        if (countryInfo) {
+            html += renderCountryBanner(countryInfo);
+        }
         results.forEach(function(r) {
+            var phoneType = (r.phone_type || r.type || 'unknown').toLowerCase();
+            var iconClass = getPhoneTypeClass(phoneType);
+            var iconName = getPhoneTypeIcon(phoneType);
+            var displayName = r.name && r.name !== 'رقم غير معروف' ? r.name : null;
+            var displayPhone = r.formatted_number || r.phone || '';
+            var operatorColor = getOperatorColor(r.operator);
+            var operatorStyle = operatorColor ? ' style="color:' + operatorColor + ';background:' + operatorColor + '15;border:1px solid ' + operatorColor + '30"' : '';
+
             html += '<div class="result-card">' +
-                '<div class="result-icon"><i data-lucide="user" style="width:22px;height:22px"></i></div>' +
+                '<div class="result-card-right">' +
+                    '<div class="result-icon ' + iconClass + '"><i data-lucide="' + iconName + '" style="width:22px;height:22px"></i></div>' +
+                    (r.flag ? '<span class="result-flag">' + r.flag + '</span>' : '') +
+                '</div>' +
                 '<div class="result-info">' +
-                    '<div class="result-name">' + (r.name || 'غير معروف') + '</div>' +
-                    '<div class="result-number">' + (r.number || '') + '</div>' +
+                    (displayName
+                        ? '<div class="result-name">' + escHtml(displayName) + ' <span class="result-name-badge">مسجل</span></div>'
+                        : ''
+                    ) +
+                    '<div class="result-phone-display">' + escHtml(displayPhone) + '</div>' +
+                    (r.operator
+                        ? '<div class="result-detail"><span class="result-detail-icon">📡</span> <span>' + escHtml(r.operator) + '</span>' +
+                          (r.operator_en && r.operator_en !== r.operator ? ' <span style="color:var(--text-muted);font-size:.8rem">(' + escHtml(r.operator_en) + ')</span>' : '') +
+                          '</div>'
+                        : ''
+                    ) +
+                    ((r.city || r.country)
+                        ? '<div class="result-detail"><span class="result-detail-icon">📍</span> <span>' + escHtml(r.city || '') + (r.city && r.country ? '، ' : '') + escHtml(r.country || '') + '</span></div>'
+                        : ''
+                    ) +
+                    (r.location && r.location !== (r.city + '، ' + r.country)
+                        ? '<div class="result-detail"><span class="result-detail-icon">🏷️</span> <span>' + escHtml(r.location) + '</span></div>'
+                        : ''
+                    ) +
                     '<div class="result-meta">' +
-                        (r.carrier ? '<span class="result-tag">' + r.carrier + '</span>' : '') +
-                        (r.location ? '<span class="result-tag location">' + r.location + '</span>' : '') +
+                        (r.operator ? '<span class="result-tag carrier"' + operatorStyle + '>' + escHtml(r.operator) + '</span>' : '') +
+                        (r.type ? '<span class="result-tag type-' + phoneType + '">' + escHtml(r.type) + '</span>' : '') +
+                        (r.city ? '<span class="result-tag location">' + escHtml(r.city) + '</span>' : '') +
+                        (r.number_valid !== undefined
+                            ? (r.number_valid
+                                ? '<span class="result-valid">✓ رقم صالح</span>'
+                                : '<span class="result-invalid">✗ رقم غير صالح</span>'
+                            )
+                            : ''
+                        ) +
                     '</div>' +
                 '</div>' +
             '</div>';
         });
         document.getElementById('resultsList').innerHTML = html;
         if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
     }
 
     function renderPagination(current, total) {
