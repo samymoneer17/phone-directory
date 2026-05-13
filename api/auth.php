@@ -29,7 +29,7 @@ if (isset($_SERVER['HTTP_ORIGIN'])) {
 }
 header('Access-Control-Allow-Origin: ' . $origin);
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, Authorization, X-Auth-Token');
 header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight
@@ -43,9 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
-// Initialize secure session for user login state
-// CSRF tokens are now stateless (HMAC-based) — no session dependency
-Security::secureSession();
+// Try to start session (non-critical on Vercel — JWT handles auth)
+try {
+    Security::secureSession();
+} catch (\Exception $e) {
+    // Session may fail on Vercel serverless — that's OK, we use JWT
+}
 
 // ============================================================
 // Read input: support both JSON body and form-data ($_POST)
@@ -235,16 +238,18 @@ try {
         // =====================================================
         case 'logout':
             $userId = null;
-            // Revoke auth token from request
+            // Revoke auth token from request (stateless JWT — no-op, but kept for compatibility)
             $authToken = $input['auth_token'] ?? '';
             if (!empty($authToken)) {
                 Auth::revokeAuthToken($authToken);
             }
-            if (Auth::isLoggedIn()) {
-                $user = Auth::getCurrentUser();
-                $userId = $user['id'] ?? null;
-            }
-            Auth::logout();
+            try {
+                if (Auth::isLoggedIn()) {
+                    $user = Auth::getCurrentUser();
+                    $userId = $user['id'] ?? null;
+                }
+                Auth::logout();
+            } catch (\Exception $e) { /* Session may not be available on Vercel */ }
             jsonResponse([
                 'success'  => true,
                 'message'  => 'تم تسجيل الخروج',

@@ -13,6 +13,7 @@
  */
 
 require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/jwt.php';
 
 class Auth
 {
@@ -241,15 +242,22 @@ class Auth
         // Set session (for traditional servers)
         self::setUserSession($user);
 
-        // Generate auth token (for Vercel serverless)
-        $authToken = self::generateAuthToken((int) $user['id']);
+        // Generate JWT auth token (stateless, works on Vercel serverless)
+        $authToken = self::generateAuthToken((int) $user['id'], [
+            'name'  => $user['name'],
+            'email' => $user['email'],
+            'plan'  => $user['plan'],
+            'phone' => $user['phone'] ?? '',
+            'role'  => $user['role'],
+        ]);
 
-        // Update last login
-        update('users', ['updated_at' => date('Y-m-d H:i:s')], 'id = :id', [':id' => $user['id']]);
+        // Update last login (best-effort, may fail on Vercel)
+        try {
+            update('users', ['updated_at' => date('Y-m-d H:i:s')], 'id = :id', [':id' => $user['id']]);
+        } catch (\Exception $e) { /* DB may not persist on Vercel */ }
 
-        Security::logActivity($user['id'], 'login', 'User logged in successfully');
-        Security::logSecurityEvent('login_success', 'INFO', $user['id'], $ip,
-            'User logged in from IP: ' . $ip);
+        try { Security::logActivity($user['id'], 'login', 'User logged in successfully'); } catch (\Exception $e) {}
+        try { Security::logSecurityEvent('login_success', 'INFO', $user['id'], $ip, 'User logged in from IP: ' . $ip); } catch (\Exception $e) {}
 
         return [
             'success' => true,
@@ -361,12 +369,24 @@ class Auth
                 self::setUserSession($user);
             }
 
-            // Generate auth token (for Vercel serverless)
-            $authToken = self::generateAuthToken((int) $userId);
+            // Generate JWT auth token (stateless, works on Vercel serverless)
+            $userData = $user ? [
+                'name'  => $user['name'] ?? $name,
+                'email' => $user['email'] ?? $email,
+                'plan'  => $user['plan'] ?? 'FREE',
+                'phone' => $user['phone'] ?? $phone,
+                'role'  => $user['role'] ?? 'USER',
+            ] : [
+                'name'  => $name,
+                'email' => $email,
+                'plan'  => 'FREE',
+                'phone' => $phone,
+                'role'  => 'USER',
+            ];
+            $authToken = self::generateAuthToken((int) $userId, $userData);
 
-            Security::logActivity($userId, 'register', 'New user registered: ' . $email);
-            Security::logSecurityEvent('user_registered', 'INFO', (int)$userId,
-                Security::getClientIP(), 'New registration from IP');
+            try { Security::logActivity($userId, 'register', 'New user registered: ' . $email); } catch (\Exception $e) {}
+            try { Security::logSecurityEvent('user_registered', 'INFO', (int)$userId, Security::getClientIP(), 'New registration from IP'); } catch (\Exception $e) {}
 
             return [
                 'success' => true,
@@ -375,7 +395,16 @@ class Auth
                 'auth_token' => $authToken,
             ];
         } catch (\Exception $e) {
-            error_log('Registration failed: ' . $e->getMessage());
+            error_log('Registration failed: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
+
+            // If duplicate email (SQL constraint violation)
+            if (strpos($e->getMessage(), 'UNIQUE') !== false || strpos($e->getMessage(), 'unique') !== false) {
+                return [
+                    'success' => false,
+                    'message' => 'البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول أو استخدام بريد آخر.',
+                ];
+            }
+
             return [
                 'success' => false,
                 'message' => 'حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.',
@@ -746,24 +775,26 @@ class Auth
         return (bool) ($planConfig['can_hide_phone'] ?? false);
     }
 
-    public static function incrementSearchCount(?int $userId = null): array
+    public static function incrementSearchCount(?int $userId = null, string $plan = 'FREE'): array
     {
-        $user = self::getCurrentUser();
-        if ($user === null) {
-            return ['count' => 0, 'limit' => FREE_SEARCH_LIMIT, 'remaining' => FREE_SEARCH_LIMIT];
-        }
-
-        $id = $userId ?? $user['id'];
-        $plan = $user['plan'] ?? 'FREE';
         $limit = PLANS[$plan]['search_limit'] ?? FREE_SEARCH_LIMIT;
 
-        $today = date('Y-m-d');
-        $todayCount = fetch(
-            "SELECT COUNT(*) as cnt FROM search_history WHERE user_id = :uid AND date(created_at) = :today",
-            [':uid' => $id, ':today' => $today]
-        );
+        if ($userId === null) {
+            return ['count' => 0, 'limit' => $limit, 'remaining' => $limit];
+        }
 
-        $currentCount = (int) ($todayCount['cnt'] ?? 0);
+        $id = $userId;
+
+        $today = date('Y-m-d');
+        try {
+            $todayCount = fetch(
+                "SELECT COUNT(*) as cnt FROM search_history WHERE user_id = :uid AND date(created_at) = :today",
+                [':uid' => $id, ':today' => $today]
+            );
+            $currentCount = (int) ($todayCount['cnt'] ?? 0);
+        } catch (\Exception $e) {
+            $currentCount = 0;
+        }
 
         if ($currentCount >= $limit) {
             return [
@@ -773,11 +804,13 @@ class Auth
             ];
         }
 
-        update('users',
-            ['search_count' => $user['search_count'] + 1],
-            'id = :id',
-            [':id' => $id]
-        );
+        try {
+            update('users',
+                ['search_count' => $currentCount + 1],
+                'id = :id',
+                [':id' => $id]
+            );
+        } catch (\Exception $e) { /* DB may not persist on Vercel */ }
 
         return [
             'count'     => $currentCount + 1,
@@ -787,65 +820,58 @@ class Auth
     }
 
     /**
-     * Generate an auth token and store it in the database.
-     * Returns the token string. Expires after SESSION_LIFETIME seconds.
+     * Generate a JWT auth token (stateless, no database needed).
+     * Returns the JWT string. Expires after SESSION_LIFETIME seconds.
      */
-    public static function generateAuthToken(int $userId): string
+    public static function generateAuthToken(int $userId, array $userData = []): string
     {
-        $token = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', time() + SESSION_LIFETIME);
-
-        try {
-            update('users', [
-                'auth_token' => $token,
-                'auth_token_expires_at' => $expiresAt,
-            ], 'id = :id', [':id' => $userId]);
-        } catch (\Exception $e) {
-            error_log('Failed to generate auth token: ' . $e->getMessage());
-        }
-
-        return $token;
+        $secret = defined('JWT_SECRET') ? JWT_SECRET : (defined('CSRF_SECRET') ? CSRF_SECRET : 'phone_dir_jwt_secret_2024');
+        $payload = [
+            'sub'  => $userId,
+            'name' => $userData['name'] ?? '',
+            'email' => $userData['email'] ?? '',
+            'plan' => $userData['plan'] ?? 'FREE',
+            'phone' => $userData['phone'] ?? '',
+            'role' => $userData['role'] ?? 'USER',
+        ];
+        return JWT::encode($payload, $secret, SESSION_LIFETIME);
     }
 
     /**
-     * Validate an auth token and return the user if valid.
+     * Validate a JWT auth token and return the user data.
+     * Stateless — no database lookup needed.
      * Returns null if token is invalid or expired.
      */
     public static function validateAuthToken(string $token): ?array
     {
         if (empty($token)) return null;
 
-        try {
-            $user = fetch(
-                "SELECT id, name, email, phone, plan, role, avatar, search_count, created_at
-                 FROM users
-                 WHERE auth_token = :token
-                 AND auth_token_expires_at > :now
-                 LIMIT 1",
-                [':token' => $token, ':now' => date('Y-m-d H:i:s')]
-            );
+        $secret = defined('JWT_SECRET') ? JWT_SECRET : (defined('CSRF_SECRET') ? CSRF_SECRET : 'phone_dir_jwt_secret_2024');
+        $data = JWT::decode($token, $secret);
 
-            return $user;
-        } catch (\Exception $e) {
-            error_log('Auth token validation failed: ' . $e->getMessage());
-            return null;
-        }
+        if ($data === null) return null;
+
+        return [
+            'id'           => (int) ($data['sub'] ?? 0),
+            'name'         => $data['name'] ?? '',
+            'email'        => $data['email'] ?? '',
+            'phone'        => $data['phone'] ?? '',
+            'plan'         => $data['plan'] ?? 'FREE',
+            'role'         => $data['role'] ?? 'USER',
+            'avatar'       => '',
+            'search_count' => 0,
+            'created_at'   => isset($data['iat']) ? date('Y-m-d H:i:s', $data['iat']) : '',
+        ];
     }
 
     /**
-     * Delete auth token (used on logout)
+     * Revoke auth token (used on logout).
+     * JWT is stateless — client simply removes the token.
      */
     public static function revokeAuthToken(string $token): void
     {
-        if (empty($token)) return;
-        try {
-            update('users', [
-                'auth_token' => null,
-                'auth_token_expires_at' => null,
-            ], 'auth_token = :token', [':token' => $token]);
-        } catch (\Exception $e) {
-            error_log('Failed to revoke auth token: ' . $e->getMessage());
-        }
+        // JWT tokens are stateless — no server-side storage to revoke.
+        // The client removes the token from localStorage on logout.
     }
 
     /**

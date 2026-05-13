@@ -28,7 +28,7 @@ if (isset($_SERVER['HTTP_ORIGIN'])) {
 }
 header('Access-Control-Allow-Origin: ' . $origin);
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, Authorization, X-Auth-Token');
 header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight
@@ -105,25 +105,30 @@ switch ($action) {
             jsonResponse(['success' => false, 'error' => 'query_too_long', 'message' => 'كلمة البحث طويلة جداً']);
         }
 
-        // Check daily search limit
+        // Check daily search limit (best-effort, may fail if DB doesn't persist on Vercel)
         $plan = $user['plan'] ?? 'FREE';
         $limit = PLANS[$plan]['search_limit'] ?? FREE_SEARCH_LIMIT;
 
-        $today = date('Y-m-d');
-        $todayCount = fetch(
-            "SELECT COUNT(*) as cnt FROM search_history WHERE user_id = :uid AND date(created_at) = :today",
-            [':uid' => $user['id'], ':today' => $today]
-        );
+        try {
+            $today = date('Y-m-d');
+            $todayCount = fetch(
+                "SELECT COUNT(*) as cnt FROM search_history WHERE user_id = :uid AND date(created_at) = :today",
+                [':uid' => $user['id'], ':today' => $today]
+            );
 
-        if ((int) $todayCount['cnt'] >= $limit) {
-            jsonResponse([
-                'success' => false,
-                'error' => 'rate_limited',
-                'message' => 'تم تجاوز حد البحث اليومي (' . $limit . ' عملية)',
-                'count' => (int) $todayCount['cnt'],
-                'limit' => $limit,
-                'remaining' => 0,
-            ], 429);
+            if ((int) $todayCount['cnt'] >= $limit) {
+                jsonResponse([
+                    'success' => false,
+                    'error' => 'rate_limited',
+                    'message' => 'تم تجاوز حد البحث اليومي (' . $limit . ' عملية)',
+                    'count' => (int) $todayCount['cnt'],
+                    'limit' => $limit,
+                    'remaining' => 0,
+                ], 429);
+            }
+            $todaySearchCount = (int) $todayCount['cnt'];
+        } catch (\Exception $e) {
+            $todaySearchCount = 0; // Allow search if DB query fails
         }
 
         // Detect country from phone
@@ -145,7 +150,7 @@ switch ($action) {
             $total = $simResults['total'];
         }
 
-        // Save search to history
+        // Save search to history (best-effort, may fail if DB doesn't persist on Vercel)
         try {
             insert('search_history', [
                 'user_id'       => $user['id'],
@@ -154,10 +159,14 @@ switch ($action) {
                 'country_code'  => $countryInfo['countryCode'] ?? null,
                 'results_count' => $total,
             ]);
-
-            Auth::incrementSearchCount($user['id']);
         } catch (\Exception $e) {
-            error_log('Search history save failed: ' . $e->getMessage());
+            error_log('Search history save failed (non-critical): ' . $e->getMessage());
+        }
+
+        try {
+            Auth::incrementSearchCount($user['id'], $user['plan'] ?? 'FREE');
+        } catch (\Exception $e) {
+            error_log('Search count increment failed (non-critical): ' . $e->getMessage());
         }
 
         $perPage = 10;
@@ -171,9 +180,9 @@ switch ($action) {
             'total'      => $total,
             'page'       => $page,
             'total_pages' => $totalPages,
-            'count'      => (int) $todayCount['cnt'] + 1,
+            'count'      => $todaySearchCount + 1,
             'limit'      => $limit,
-            'remaining'  => $limit - ((int) $todayCount['cnt'] + 1),
+            'remaining'  => $limit - ($todaySearchCount + 1),
         ]);
         break;
 }
